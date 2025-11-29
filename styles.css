@@ -1,0 +1,89 @@
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #000;
+    font-family: 'Courier New', monospace;
+    user-select: none;
+}
+canvas { display: block; }
+
+/* UI 层 */
+#ui-layer {
+    position: absolute; top: 20px; left: 20px;
+    color: #33ccff; pointer-events: none; z-index: 10;
+}
+.hud-row {
+    margin-bottom: 8px; font-size: 16px;
+    text-shadow: 0 0 5px rgba(51, 204, 255, 0.5);
+}
+.val-warn { color: #ff3333; text-shadow: 0 0 5px #ff3333; }
+
+#freq-box {
+    border: 2px solid #33ccff; padding: 5px 10px;
+    display: inline-block; background: rgba(0,20,40,0.8);
+    font-weight: bold; font-size: 20px; transition: color 0.2s;
+}
+
+/* 频率分析仪浮动UI */
+.analyzer-tag {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.85);
+    border: 1px solid #33ccff;
+    padding: 6px;
+    color: #fff;
+    font-size: 12px;
+    pointer-events: none;
+    transform: translate(-50%, -100%);
+    white-space: nowrap;
+    display: none;
+    box-shadow: 0 0 10px #33ccff;
+    z-index: 100;
+}
+.analyzer-bar {
+    width: 80px; height: 6px; background: #333; margin: 4px 0; position: relative; border-radius: 2px;
+}
+.analyzer-pip {
+    width: 4px; height: 10px; background: #fff; position: absolute; top: -2px; transition: left 0.1s;
+}
+.analyzer-center {
+    width: 2px; height: 10px; background: #33ccff; position: absolute; left: 40px; top: -2px;
+}
+.analyzer-text {
+    font-size: 12px; font-weight: bold; text-align: center;
+}
+
+/* 交互提示 (通用) */
+.interact-hint {
+    position: absolute; display: none;
+    color: #fff; font-weight: bold; font-size: 14px;
+    text-shadow: 0 0 5px #fff; border: 1px solid #fff;
+    padding: 2px 6px; background: rgba(0,0,0,0.8);
+    transform: translate(-50%, -150%);
+    z-index: 101;
+}
+/* 处决特定样式 */
+#execute-hint { color: #ff0000; border-color: #ff0000; text-shadow: 0 0 5px #ff0000; }
+/* 拾取特定样式 */
+#pickup-hint { color: #00ff00; border-color: #00ff00; text-shadow: 0 0 5px #00ff00; }
+
+/* 受伤/过载红屏 */
+#screen-flash {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: red; opacity: 0; pointer-events: none; z-index: 5;
+    transition: opacity 0.1s;
+}
+
+/* 操作指南优化 */
+.controls {
+    position: absolute; bottom: 20px; left: 20px;
+    color: #aaa; font-size: 13px; z-index: 10;
+    background: rgba(0, 10, 20, 0.8);
+    padding: 10px;
+    border-left: 3px solid #33ccff;
+    line-height: 1.6;
+}
+.key-btn {
+    color: #fff; font-weight: bold; background: #333; padding: 1px 4px; border-radius: 3px; font-size: 12px;
+}
+.highlight { color: #33ccff; font-weight: bold; }
+
