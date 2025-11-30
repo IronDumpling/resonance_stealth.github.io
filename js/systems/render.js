@@ -170,30 +170,7 @@ function draw() {
         ctx.strokeRect(w.x, w.y, w.w, w.h); 
     });
 
-    state.entities.items.forEach(i => {
-        if(i.visibleTimer > 0) {
-            ctx.fillStyle = '#00ff00'; ctx.shadowBlur = 10; ctx.shadowColor = '#00ff00';
-            ctx.beginPath(); 
-            // 简单的瓶子形状
-            ctx.rect(i.x-3, i.y-6, 6, 12);
-            ctx.fill();
-            ctx.shadowBlur = 0;
-        }
-    });
-
-    state.entities.enemies.forEach(e => {
-        // 绘制敌人本体
-        ctx.beginPath();
-        ctx.arc(e.x, e.y, e.r, 0, Math.PI*2);
-        if(e.state === 'stunned') {
-            ctx.fillStyle = '#333'; ctx.strokeStyle = '#555'; ctx.lineWidth = 1; ctx.stroke();
-        } else {
-            ctx.fillStyle = '#111'; ctx.strokeStyle = '#333'; ctx.stroke();
-        }
-        ctx.fill();
-    });
-    
-    // 绘制 instructions（像贴在地板上一样，遵守视野裁剪）
+    // 绘制 instructions（像贴在地板上一样，先渲染以便被敌人和物品遮挡）
     state.entities.instructions.forEach(inst => {
         // 1. 检查距离（快速过滤）
         const d = dist(inst.x, inst.y, state.p.x, state.p.y);
@@ -227,6 +204,29 @@ function draw() {
         });
         ctx.shadowBlur = 0;
         ctx.restore();
+    });
+
+    state.entities.items.forEach(i => {
+        if(i.visibleTimer > 0) {
+            ctx.fillStyle = '#00ff00'; ctx.shadowBlur = 10; ctx.shadowColor = '#00ff00';
+            ctx.beginPath(); 
+            // 简单的瓶子形状
+            ctx.rect(i.x-3, i.y-6, 6, 12);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+    });
+
+    state.entities.enemies.forEach(e => {
+        // 绘制敌人本体
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.r, 0, Math.PI*2);
+        if(e.state === 'stunned') {
+            ctx.fillStyle = '#333'; ctx.strokeStyle = '#555'; ctx.lineWidth = 1; ctx.stroke();
+        } else {
+            ctx.fillStyle = '#111'; ctx.strokeStyle = '#333'; ctx.stroke();
+        }
+        ctx.fill();
     });
     
     ctx.restore();
