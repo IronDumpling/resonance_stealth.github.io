@@ -62,28 +62,29 @@ function gainEnergy(amount) {
 // 统一交互逻辑 (拾取 + 处决)
 function tryInteract() {
     // 1. 优先尝试处决
-    const enemies = state.entities.enemies.filter(e => e.state === 'stunned' && dist(e.x,e.y,state.p.x,state.p.y) < 60);
+    const enemies = state.entities.enemies.filter(e => e.state === 'stunned' && e.canBeDetonated && dist(e.x,e.y,state.p.x,state.p.y) < 80);
     if(enemies.length > 0) {
-        const e = enemies[0];
-        state.entities.enemies = state.entities.enemies.filter(x => x !== e);
-        if(e.uiElement) e.uiElement.remove();
+        const Target = enemies[0];
+        
+        // 设置敌人为激发态（不立即移除）
+        Target.state = 'detonating';
         
         // 根据共振类型给予不同奖励
-        if (e.isPerfectStun) {
+        if (Target.isPerfectStun) {
             // 完美共振：能量回满
-            const energyGain = CFG.maxEnergy;
-            gainEnergy(energyGain);
-            logMsg("PERFECT SIPHON - FULL ENERGY RESTORED");
-            spawnParticles(e.x, e.y, '#00ff00', 50); // 绿色粒子
+            gainEnergy(CFG.maxEnergy);
+            logMsg("ECHO BEACON DETONATED - CASCADE INITIATED");
         } else {
             // 普通共振：能量+50%
-            const energyGain = CFG.maxEnergy * 0.5;
-            gainEnergy(energyGain);
-            logMsg(`CORE SIPHONED (+${Math.floor(energyGain)} ENERGY)`);
-            spawnParticles(e.x, e.y, '#00ffff', 40); // 青色粒子
+            gainEnergy(CFG.maxEnergy * 0.5);
+            logMsg("ECHO BEACON DETONATED - AREA REVEALED");
         }
         
-        setTimeout(spawnEnemy, 4000);
+        // 视觉反馈
+        flashScreen('white', 100); // 屏幕白闪
+        spawnParticles(Target.x, Target.y, '#00ffff', 50); // 青色粒子
+        
+        // 不立即移除敌人，让 updateEnemies 在下一帧处理激发态并释放波
         updateUI();
         return;
     }

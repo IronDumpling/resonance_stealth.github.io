@@ -955,15 +955,6 @@ function handleWaveEnemyInteraction(w, oldR, waveIndex) {
                         isPerfect: isPerfectResonance
                     });
                     
-                    // 共振反应：被击中的敌人发射环形波纹
-                    emitWave(enemy.x, enemy.y, 0, Math.PI*2, enemy.freq, 'enemy', enemy.id);
-                    enemy.resCool = CFG.resCooldown;
-                    
-                    // 敌人会警觉并追踪波纹来源位置
-                    if (enemy.state === 'idle' || enemy.state === 'alert' || enemy.state === 'patrol' || enemy.state === 'searching') {
-                        onEnemySensesPlayer(enemy, w.x, w.y);
-                    }
-                    
                     // 过载效果：基于能量阈值判断
                     const minCircumference = CFG.initialRadius * CFG.minSpread;
                     const minEnergyPerPoint = CFG.baseWaveEnergy / minCircumference;
@@ -974,15 +965,29 @@ function handleWaveEnemyInteraction(w, oldR, waveIndex) {
                     const overloadThreshold = minTotalEnergy * 0.1;
                     
                     if (totalEnergy >= overloadThreshold) {
+                        // 进入stun状态，不发出受迫共振波
                         enemy.state = 'stunned';
-                        enemy.isPerfectStun = isPerfectResonance; // 标记是否完美共振
-                        enemy.timer = isPerfectResonance ? (CFG.stunTime * 1.5) : CFG.stunTime;
-                        enemy.stunWaveCooldown = 0; // 用于完美共振持续发波
+                        enemy.isPerfectStun = isPerfectResonance;
+                        enemy.timer = isPerfectResonance ? 600 : 300; // 完美共振10秒，普通共振5秒
+                        enemy.canBeDetonated = true; // 标记可处决
                         
+                        // 视觉反馈
+                        spawnParticles(enemy.x, enemy.y, '#ffff00', 15); // 黄色警告粒子
+                        
+                        // 日志消息
                         if (isPerfectResonance) {
-                            logMsg("PERFECT RESONANCE - TARGET DESTABILIZING");
+                            logMsg("TARGET CRITICAL - READY TO DETONATE");
                         } else {
-                            logMsg("TARGET STABILIZED");
+                            logMsg("TARGET STUNNED");
+                        }
+                    } else {
+                        // 能量不足，只进行普通的受迫发波，不进入stun
+                        emitWave(enemy.x, enemy.y, 0, Math.PI*2, enemy.freq, 'enemy', enemy.id);
+                        enemy.resCool = CFG.resCooldown;
+                        
+                        // 敌人会警觉并追踪波纹来源位置
+                        if (enemy.state === 'idle' || enemy.state === 'alert' || enemy.state === 'patrol' || enemy.state === 'searching') {
+                            onEnemySensesPlayer(enemy, w.x, w.y);
                         }
                     }
                 }

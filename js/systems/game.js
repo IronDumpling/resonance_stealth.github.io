@@ -1,14 +1,13 @@
 // 主游戏逻辑
 
 // 全局变量（在HTML中初始化）
-let canvas, ctx, uiContainer, executeHint, pickupHint, screenFlash;
+let canvas, ctx, uiContainer, pickupHint, screenFlash;
 
 // 初始化全局变量
 function initGlobals() {
     canvas = document.getElementById('gameCanvas');
     ctx = canvas.getContext('2d');
     uiContainer = document.getElementById('world-ui-container');
-    executeHint = document.getElementById('execute-hint');
     pickupHint = document.getElementById('pickup-hint');
     screenFlash = document.getElementById('screen-flash');
     
@@ -253,21 +252,14 @@ function checkPickups() {
 }
 
 // 更新交互提示
-function updateInteractionHints(hasExeTarget, hasPickupTarget) {
-    if(hasExeTarget) {
+function updateInteractionHints(hasPickupTarget) {
+    if(hasPickupTarget) {
+        // 显示 pickup hint 在玩家位置
         const screenPos = worldToScreen(state.p.x, state.p.y - 40);
-        executeHint.style.display = 'block';
-        executeHint.style.left = screenPos.x + 'px';
-        executeHint.style.top = screenPos.y + 'px';
-        pickupHint.style.display = 'none';
-    } else if(hasPickupTarget) {
-        const screenPos = worldToScreen(state.p.x, state.p.y - 40);
-        executeHint.style.display = 'none';
         pickupHint.style.display = 'block';
         pickupHint.style.left = screenPos.x + 'px';
         pickupHint.style.top = screenPos.y + 'px';
     } else {
-        executeHint.style.display = 'none';
         pickupHint.style.display = 'none';
     }
 }
@@ -303,9 +295,9 @@ function update() {
     state.entities.waves = state.entities.waves.filter(w => !w._toRemove);
     
     // 更新敌人和检查交互
-    const hasExeTarget = updateEnemies();
+    updateEnemies();
     const hasPickupTarget = checkPickups();
-    updateInteractionHints(hasExeTarget, hasPickupTarget);
+    updateInteractionHints(hasPickupTarget);
     
     updateParticlesAndEchoes();
     updateUI();
