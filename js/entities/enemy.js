@@ -125,8 +125,8 @@ function updateEnemyUI(e) {
 
 // 更新敌人移动
 function updateEnemyMovement(e) {
-    // STUNNED 状态在 updateEnemies 中处理，这里直接返回
-    if (e.state === 'stunned') return;
+    // STUNNED 和 DETONATING 状态在 updateEnemies 中处理，这里直接返回
+    if (e.state === 'stunned' || e.state === 'detonating') return;
     
     // 搜寻状态：原地停顿并在中途发出搜索波
     if (e.state === 'searching') {

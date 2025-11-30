@@ -62,12 +62,24 @@ function gainEnergy(amount) {
 // 统一交互逻辑 (拾取 + 处决)
 function tryInteract() {
     // 1. 优先尝试处决
-    const enemies = state.entities.enemies.filter(e => e.state === 'stunned' && e.canBeDetonated && dist(e.x,e.y,state.p.x,state.p.y) < 80);
+    const enemies = state.entities.enemies.filter(
+        e => e.state === 'stunned' && 
+        e.canBeDetonated && 
+        dist(e.x,e.y,state.p.x,state.p.y) < 80
+    );
+
     if(enemies.length > 0) {
         const Target = enemies[0];
         
-        // 设置敌人为激发态（不立即移除）
+        // 再次检查状态，防止在检查和处理之间状态被改变
+        if (Target.state !== 'stunned' || !Target.canBeDetonated) {
+            return;
+        }
+        
+        // 设置敌人为激发态
         Target.state = 'detonating';
+        // 立即清除可处决标记，防止重复触发
+        Target.canBeDetonated = false;
         
         // 根据共振类型给予不同奖励
         if (Target.isPerfectStun) {
@@ -90,7 +102,11 @@ function tryInteract() {
     }
 
     // 2. 尝试拾取
-    const items = state.entities.items.filter(i => dist(i.x, i.y, state.p.x, state.p.y) < 40 && i.visibleTimer > 0);
+    const items = state.entities.items.filter(
+        i => dist(i.x, i.y, state.p.x, state.p.y) < 40 && 
+        i.visibleTimer > 0
+    );
+    
     if(items.length > 0) {
         const item = items[0];
         if(item.type === 'energy') {
