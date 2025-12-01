@@ -60,17 +60,20 @@ canvas { display: block; }
     padding: 2px 6px; background: rgba(0,0,0,0.8);
     transform: translate(-50%, -150%);
     z-index: 101;
+    pointer-events: none;
 }
 /* 处决特定样式 */
-#execute-hint { color: #ff0000; border-color: #ff0000; text-shadow: 0 0 5px #ff0000; }
+.execute-hint { color: #ff0000; border-color: #ff0000; text-shadow: 0 0 5px #ff0000; }
 /* 拾取特定样式 */
 #pickup-hint { color: #00ff00; border-color: #00ff00; text-shadow: 0 0 5px #00ff00; }
 
-/* 受伤/过载红屏 */
-#screen-flash {
+/* 边缘红光效果 能量低或被grab时显示，也用于闪烁效果 */
+#edge-glow {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    background: red; opacity: 0; pointer-events: none; z-index: 5;
-    transition: opacity 0.1s;
+    pointer-events: none; z-index: 6;
+    opacity: 0;
+    transition: opacity 0.2s;
+    box-shadow: inset 0 0 20px 8px rgba(255, 0, 0, 0.8);
 }
 
 /* 操作指南优化 */

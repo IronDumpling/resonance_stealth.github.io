@@ -170,30 +170,7 @@ function draw() {
         ctx.strokeRect(w.x, w.y, w.w, w.h); 
     });
 
-    state.entities.items.forEach(i => {
-        if(i.visibleTimer > 0) {
-            ctx.fillStyle = '#00ff00'; ctx.shadowBlur = 10; ctx.shadowColor = '#00ff00';
-            ctx.beginPath(); 
-            // 简单的瓶子形状
-            ctx.rect(i.x-3, i.y-6, 6, 12);
-            ctx.fill();
-            ctx.shadowBlur = 0;
-        }
-    });
-
-    state.entities.enemies.forEach(e => {
-        // 绘制敌人本体
-        ctx.beginPath();
-        ctx.arc(e.x, e.y, e.r, 0, Math.PI*2);
-        if(e.state === 'stunned') {
-            ctx.fillStyle = '#333'; ctx.strokeStyle = '#555'; ctx.lineWidth = 1; ctx.stroke();
-        } else {
-            ctx.fillStyle = '#111'; ctx.strokeStyle = '#333'; ctx.stroke();
-        }
-        ctx.fill();
-    });
-    
-    // 绘制 instructions（像贴在地板上一样，遵守视野裁剪）
+    // 绘制 instructions（像贴在地板上一样，先渲染以便被敌人和物品遮挡）
     state.entities.instructions.forEach(inst => {
         // 1. 检查距离（快速过滤）
         const d = dist(inst.x, inst.y, state.p.x, state.p.y);
@@ -228,6 +205,29 @@ function draw() {
         ctx.shadowBlur = 0;
         ctx.restore();
     });
+
+    state.entities.items.forEach(i => {
+        if(i.visibleTimer > 0) {
+            ctx.fillStyle = '#00ff00'; ctx.shadowBlur = 10; ctx.shadowColor = '#00ff00';
+            ctx.beginPath(); 
+            // 简单的瓶子形状
+            ctx.rect(i.x-3, i.y-6, 6, 12);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+    });
+
+    state.entities.enemies.forEach(e => {
+        // 绘制敌人本体
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.r, 0, Math.PI*2);
+        if(e.state === 'stunned') {
+            ctx.fillStyle = '#333'; ctx.strokeStyle = '#555'; ctx.lineWidth = 1; ctx.stroke();
+        } else {
+            ctx.fillStyle = '#111'; ctx.strokeStyle = '#333'; ctx.stroke();
+        }
+        ctx.fill();
+    });
     
     ctx.restore();
 
@@ -237,7 +237,7 @@ function draw() {
     ctx.fillStyle = state.p.invuln > 0 ? '#fff' : '#00ffff';
     ctx.beginPath(); ctx.moveTo(10,0); ctx.lineTo(-8, 6); ctx.lineTo(-8, -6); ctx.fill();
     
-    if(state.isCharging) {
+    if(state.p.isCharging) {
         const spread = lerp(CFG.maxSpread, CFG.minSpread, state.focusLevel);
         ctx.fillStyle = `rgba(0, 255, 255, ${0.1 + state.focusLevel*0.2})`;
         ctx.beginPath(); ctx.moveTo(0,0);
@@ -254,5 +254,35 @@ function draw() {
     
     // 恢复相机变换
     ctx.restore();
+    
+    // 绘制挣脱进度条（被抓取时显示）
+    if (state.p.isGrabbed) {
+        const barWidth = 400;
+        const barHeight = 30;
+        const barX = (canvas.width - barWidth) / 2;
+        const barY = canvas.height - 100;
+        const progress = state.p.struggleProgress / CFG.struggleProgressMax;
+        
+        // 背景
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        ctx.fillRect(barX, barY, barWidth, barHeight);
+        
+        // 进度条
+        ctx.fillStyle = '#ff0000';
+        ctx.fillRect(barX + 2, barY + 2, (barWidth - 4) * progress, barHeight - 4);
+        
+        // 边框
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(barX, barY, barWidth, barHeight);
+        
+        // 文字
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 20px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('[F] STRUGGLE', canvas.width / 2, barY - 25);
+    }
+    
 }
 

@@ -30,19 +30,43 @@ function spawnEnemy() {
         freq: Math.floor(rand(CFG.freqMin, CFG.freqMax)),
         state: 'patrol', timer: 0, angle: rand(0, Math.PI*2),
         resCool: 0,
+        grabCooldown: 0,           // 抓取冷却时间
         lastPingTime: 0, pingType: null,
         targetX: null, targetY: null,
         searchTimer: 0,
         waypoints: waypoints,
         currentWPIndex: 0,
-        uiElement: createAnalyzerUI()
+        uiElement: createAnalyzerUI(),
+        executeHintElement: createExecuteHintUI(),
+        struggleHintElement: createStruggleHintUI()
     });
 }
 
 function createAnalyzerUI() {
     const div = document.createElement('div');
     div.className = 'analyzer-tag';
-    div.innerHTML = `<div style="text-align:center;margin-bottom:2px;">FREQ ANALYSIS</div><div class="analyzer-bar"><div class="analyzer-center"></div><div class="analyzer-pip" style="left:50%"></div></div><div class="analyzer-text" style="color:#aaa;">UNKNOWN</div>`;
+    div.innerHTML = `<div style="text-align:center;margin-bottom:2px;">FREQ ANALYSIS</div>
+                    <div class="analyzer-bar">
+                        <div class="analyzer-center"></div>
+                        <div class="analyzer-pip" style="left:50%"></div>
+                    </div>
+                    <div class="analyzer-text" style="color:#aaa;">UNKNOWN</div>`;
+    uiContainer.appendChild(div);
+    return div;
+}
+
+function createExecuteHintUI() {
+    const div = document.createElement('div');
+    div.className = 'interact-hint execute-hint';
+    div.innerHTML = '[E] EXECUTE';
+    uiContainer.appendChild(div);
+    return div;
+}
+
+function createStruggleHintUI() {
+    const div = document.createElement('div');
+    div.className = 'interact-hint struggle-hint';
+    div.innerHTML = '[F] STRUGGLE';
     uiContainer.appendChild(div);
     return div;
 }
@@ -59,7 +83,14 @@ function onEnemySensesPlayer(enemy, playerX, playerY) {
 // 更新敌人UI
 function updateEnemyUI(e) {
     const ui = e.uiElement;
-    if (Date.now() - e.lastPingTime < 2000 && e.pingType === 'analyze') {
+    const execHint = e.executeHintElement;
+    const struggleHint = e.struggleHintElement;
+    
+    // analyze UI 只在 idle, patrol, alert, searching 状态中显示
+    const canShowAnalyze = (e.state === 'idle' || e.state === 'patrol' || e.state === 'alert' || e.state === 'searching');
+    
+    // 更新 analyze UI
+    if (canShowAnalyze && Date.now() - e.lastPingTime < 2000 && e.pingType === 'analyze') {
         const screenPos = worldToScreen(e.x, e.y - 20);
         ui.style.display = 'block'; 
         ui.style.left = screenPos.x + 'px'; 
@@ -91,12 +122,37 @@ function updateEnemyUI(e) {
     } else {
         ui.style.display = 'none';
     }
+    
+    // execute hint UI 只在 stunned 状态且可处决时显示
+    if (e.state === 'stunned' && e.canBeDetonated) {
+        const screenPos = worldToScreen(e.x, e.y - 40);
+        execHint.style.display = 'block';
+        execHint.style.left = screenPos.x + 'px';
+        execHint.style.top = screenPos.y + 'px';
+    } else {
+        execHint.style.display = 'none';
+    }
+    
+    // struggle hint UI 只在 grabbing 状态时显示
+    if (e.state === 'grabbing' && state.p.isGrabbed && state.p.grabberEnemy === e) {
+        const screenPos = worldToScreen(e.x, e.y - 40);
+        struggleHint.style.display = 'block';
+        struggleHint.style.left = screenPos.x + 'px';
+        struggleHint.style.top = screenPos.y + 'px';
+    } else {
+        struggleHint.style.display = 'none';
+    }
 }
 
 // 更新敌人移动
 function updateEnemyMovement(e) {
-    // STUNNED 状态在 updateEnemies 中处理，这里直接返回
-    if (e.state === 'stunned') return;
+    // STUNNED、DETONATING 和 GRABBING 状态在 updateEnemies 中处理，这里直接返回
+    if (e.state === 'stunned' || e.state === 'detonating' || e.state === 'grabbing') return;
+    
+    // 检查玩家是否挣脱（如果敌人处于 grabbing 状态但玩家已挣脱）
+    if (e.state === 'grabbing' && (!state.p.isGrabbed || state.p.grabberEnemy !== e)) {
+        e.state = 'alert';
+    }
     
     // 搜寻状态：原地停顿并在中途发出搜索波
     if (e.state === 'searching') {
@@ -205,57 +261,98 @@ function updateEnemyMovement(e) {
 
 // 更新敌人
 function updateEnemies() {
-    let hasExeTarget = false;
-    const enemiesToRemove = []; // 需要移除的敌人（完美共振死亡）
+    const enemiesToRemove = []; // 需要移除的敌人
     
     state.entities.enemies.forEach(e => {
         if(e.resCool > 0) e.resCool--;
-        
-        updateEnemyUI(e);
+        if(e.grabCooldown > 0) e.grabCooldown--;
         
         const dToP = dist(e.x, e.y, state.p.x, state.p.y);
         
-        if(e.state === 'stunned') {
+        if(e.state === 'grabbing') {
+            // 抓取状态：停止移动，检查玩家是否挣脱
+            if (!state.p.isGrabbed || state.p.grabberEnemy !== e) {
+                // 玩家已挣脱，恢复正常状态
+                e.state = 'alert';
+                e.grabCooldown = CFG.grabCD; // 设置抓取冷却
+            }
+            // 抓取状态下不移动，不更新其他逻辑
+            return;
+        } else if(e.state === 'stunned') {
             e.timer--;
             
-            // 完美共振：持续发出受迫共振波
-            if (e.isPerfectStun) {
-                if (e.stunWaveCooldown <= 0) {
-                    emitWave(e.x, e.y, 0, Math.PI * 2, e.freq, 'enemy', e.id);
-                    e.stunWaveCooldown = 60; // 每60帧（约1秒）发一次波
-                    spawnParticles(e.x, e.y, '#ff4400', 15); // 红色粒子表示危险
-                } else {
-                    e.stunWaveCooldown--;
-                }
-            }
+            // stun状态不发出任何波，也不造成伤害
             
             if(e.timer <= 0) {
-                if (e.isPerfectStun) {
-                    // 完美共振结束后：敌人死亡
-                    enemiesToRemove.push(e);
-                    spawnParticles(e.x, e.y, '#00ffff', 50);
-                    logMsg("HOSTILE DISINTEGRATED");
-                    setTimeout(spawnEnemy, 5000); // 5秒后重生新敌人
+                // 倒计时结束，恢复正常状态
+                e.state = 'alert';
+                e.canBeDetonated = false;
+                e.isPerfectStun = false;
+                logMsg("TARGET RECOVERED");
+            }
+        } else if(e.state === 'detonating') {
+            // 激发态处理
+            // detonating状态不造成伤害
+            
+            if (!e.isPerfectStun) {
+                // 普通共振：立即释放一次波，然后死亡
+                emitWave(e.x, e.y, 0, Math.PI*2, e.freq, 'pulse', e.id);
+                enemiesToRemove.push(e);
+                spawnParticles(e.x, e.y, '#00ffff', 50);
+            } else {
+                // 完美共振：持续释放多次波，频率递减
+                // 初始化属性
+                if (e.detonatePulseTimer === undefined) {
+                    e.detonatePulseTimer = 0;
+                    e.detonateCurrentFreq = e.freq;
+                }
+                
+                // 每隔60帧释放一次波
+                if (e.detonatePulseTimer <= 0) {
+                    emitWave(e.x, e.y, 0, Math.PI*2, e.detonateCurrentFreq, 'pulse', e.id);
+                    spawnParticles(e.x, e.y, '#00ffff', 30);
+                    
+                    // 频率递减50Hz，最低100Hz
+                    e.detonateCurrentFreq = Math.max(100, e.detonateCurrentFreq - 50);
+                    
+                    // 如果频率已经降到100Hz，释放完最后一波后死亡
+                    if (e.detonateCurrentFreq <= 100) {
+                        enemiesToRemove.push(e);
+                        spawnParticles(e.x, e.y, '#00ffff', 100);
+                    } else {
+                        e.detonatePulseTimer = 60; // 重置计时器（1秒）
+                    }
                 } else {
-                    // 普通共振结束后：恢复正常
-                    e.state = 'alert';
-                    e.isPerfectStun = false;
+                    e.detonatePulseTimer--;
                 }
             }
-            
-            if(dToP < 60) hasExeTarget = true;
         } else {
-            if(dToP < 25) takeDamage(CFG.dmgVal);
+            // 碰撞检测：抓取玩家
+            if(dToP < 25 && !state.p.isGrabbed && e.grabCooldown <= 0 && 
+               e.state !== 'stunned' && e.state !== 'detonating') {
+                // 抓取玩家
+                state.p.isGrabbed = true;
+                state.p.grabberEnemy = e;
+                state.p.struggleProgress = 0;
+                e.state = 'grabbing';
+                e.grabCooldown = CFG.grabCD; // 设置抓取冷却
+                logMsg("GRABBED!");
+            }
             updateEnemyMovement(e);
         }
     });
     
-    // 移除完美共振死亡的敌人
+    // 第二遍：更新所有敌人的UI
+    state.entities.enemies.forEach(e => {
+        updateEnemyUI(e);
+    });
+    
+    // 移除死亡的敌人
     enemiesToRemove.forEach(e => {
         state.entities.enemies = state.entities.enemies.filter(x => x !== e);
         if(e.uiElement) e.uiElement.remove();
+        if(e.executeHintElement) e.executeHintElement.remove();
+        if(e.struggleHintElement) e.struggleHintElement.remove();
     });
-    
-    return hasExeTarget;
 }
 

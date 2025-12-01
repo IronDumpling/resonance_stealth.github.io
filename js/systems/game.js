@@ -1,16 +1,15 @@
 // 主游戏逻辑
 
 // 全局变量（在HTML中初始化）
-let canvas, ctx, uiContainer, executeHint, pickupHint, screenFlash;
+let canvas, ctx, uiContainer, pickupHint, edgeGlow;
 
 // 初始化全局变量
 function initGlobals() {
     canvas = document.getElementById('gameCanvas');
     ctx = canvas.getContext('2d');
     uiContainer = document.getElementById('world-ui-container');
-    executeHint = document.getElementById('execute-hint');
     pickupHint = document.getElementById('pickup-hint');
-    screenFlash = document.getElementById('screen-flash');
+    edgeGlow = document.getElementById('edge-glow');
     
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
@@ -18,12 +17,26 @@ function initGlobals() {
 
 // --- 游戏状态 ---
 const state = {
-    p: { x: 0, y: 0, a: 0, hp: CFG.maxHp, en: CFG.maxEnergy, reserveEn: 0, invuln: 0, resCool: 0 },
-    keys: { w:0, a:0, s:0, d:0, space:0, f:0, r:0 },
+    p: { 
+        x: 0, 
+        y: 0, 
+        a: 0, 
+        isGrabbed: false,
+        grabberEnemy: null,      // 抓取玩家的敌人引用
+        struggleProgress: 0,      // 挣脱进度 (0-100)
+        isCharging: false,
+        chargeStartTime: 0,       // 开始蓄力的时间戳（秒）
+        en: CFG.maxEnergy, 
+        reserveEn: 0, 
+        invuln: 0,
+        resCool: 0, 
+        grabParticleTimer: 0,
+    },
+    keys: { w:0, a:0, s:0, d:0, space:0, f:0, r:0, e:0 },
     mouse: { x:0, y:0 },
     freq: 150,
     focusLevel: 0,
-    isCharging: false,
+    
     camera: { x: 0, y: 0 },
     entities: {
         walls: [], enemies: [], waves: [], echoes: [], particles: [], items: [], wallEchoes: [], instructions: []
@@ -115,8 +128,11 @@ function init() {
     // 初始化玩家位置
     state.p.x = canvas.width/2;
     state.p.y = canvas.height/2;
-    state.p.hp = CFG.maxHp;
     state.p.en = CFG.maxEnergy;
+    state.p.isGrabbed = false;
+    state.p.grabberEnemy = null;
+    state.p.struggleProgress = 0;
+    state.p.chargeStartTime = 0;
     
     state.entities.walls = [];
     state.entities.items = [];
@@ -253,21 +269,14 @@ function checkPickups() {
 }
 
 // 更新交互提示
-function updateInteractionHints(hasExeTarget, hasPickupTarget) {
-    if(hasExeTarget) {
+function updateInteractionHints(hasPickupTarget) {
+    if(hasPickupTarget) {
+        // 显示 pickup hint 在玩家位置
         const screenPos = worldToScreen(state.p.x, state.p.y - 40);
-        executeHint.style.display = 'block';
-        executeHint.style.left = screenPos.x + 'px';
-        executeHint.style.top = screenPos.y + 'px';
-        pickupHint.style.display = 'none';
-    } else if(hasPickupTarget) {
-        const screenPos = worldToScreen(state.p.x, state.p.y - 40);
-        executeHint.style.display = 'none';
         pickupHint.style.display = 'block';
         pickupHint.style.left = screenPos.x + 'px';
         pickupHint.style.top = screenPos.y + 'px';
     } else {
-        executeHint.style.display = 'none';
         pickupHint.style.display = 'none';
     }
 }
@@ -291,6 +300,7 @@ function updateParticlesAndEchoes() {
 // 主更新函数
 function update() {
     updatePlayer();
+    checkPlayerDeath(); // 检查能量归零死亡
     updateCamera();
     updateItemsVisibility();
 
@@ -303,9 +313,9 @@ function update() {
     state.entities.waves = state.entities.waves.filter(w => !w._toRemove);
     
     // 更新敌人和检查交互
-    const hasExeTarget = updateEnemies();
+    updateEnemies();
     const hasPickupTarget = checkPickups();
-    updateInteractionHints(hasExeTarget, hasPickupTarget);
+    updateInteractionHints(hasPickupTarget);
     
     updateParticlesAndEchoes();
     updateUI();

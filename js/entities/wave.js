@@ -775,7 +775,7 @@ function handleWavePlayerInteraction(w, oldR, waveIndex) {
         }
     }
     
-    // 伤害 / 过载与受迫共振：只在发生共振且冷却就绪时触发
+    // 受迫共振：只在发生共振且冷却就绪时触发
     if (isNormalResonance && state.p.resCool <= 0) {
         // 估算击中玩家的总能量
         const playerDiameter = CFG.playerRadius * 2;
@@ -784,29 +784,22 @@ function handleWavePlayerInteraction(w, oldR, waveIndex) {
         const totalEnergyOnPlayer = w.energyPerPoint * coveredArcLength;
         
         let energyCost = CFG.forcedWaveCost;
-        let damage = 0;
         
-        // 能量不足时，造成过载伤害
+        // 消耗能量（能量不足时归零）
         if (state.p.en < energyCost) {
-            damage = (energyCost - state.p.en) * CFG.overloadDmgRatio;
             state.p.en = 0;
-            takeDamage(damage);
-            logMsg(`CRITICAL OVERLOAD (-${Math.floor(damage)} HP)`);
+            logMsg("CRITICAL OVERLOAD: ENERGY DEPLETED");
         } else {
             state.p.en -= energyCost;
             logMsg("SYSTEM OVERLOAD: ENERGY DRAIN");
         }
         
-        // 高能量密度下的额外过载惩罚
+        // 高能量密度下的视觉反馈（触发边缘红光闪烁）
         const overloadThreshold = CFG.baseWaveEnergy * CFG.energyThreshold;
         if (totalEnergyOnPlayer >= overloadThreshold) {
-            // 若之前未造成HP伤害，则再追加一次受损
-            if (damage === 0) {
-                takeDamage(CFG.dmgVal);
-            }
-            flashScreen('#00ffff', 150);
+            flashEdgeGlow('red', 150); // 高能量：较长的红色闪烁
         } else {
-            flashScreen('#00ffff', 100);
+            flashEdgeGlow('red', 100); // 普通能量：较短的红色闪烁
         }
         
         // 玩家被迫发出自发波（与敌人受迫共振对称）
@@ -827,7 +820,7 @@ function handleWavePlayerInteraction(w, oldR, waveIndex) {
 }
 
 // 处理波纹与墙壁的碰撞
-function handleWaveWallCollision(w, oldR, waveIndex) {
+function handleWaveWallInteraction(w, oldR, waveIndex) {
     for (let wall of state.entities.walls) {
         const collision = checkWaveWallCollision(w, wall);
         if (collision.hit) {
@@ -865,7 +858,7 @@ function checkWaveItemCollisions(w) {
 }
 
 // 处理波纹与敌人碰撞（分割波纹）
-function handleWaveEnemyCollision(w, oldR, waveIndex) {
+function handleWaveEnemyInteraction(w, oldR, waveIndex) {
     for (let enemy of state.entities.enemies) {
         if(w.ownerId === enemy.id) continue;
         
@@ -955,15 +948,6 @@ function handleWaveEnemyCollision(w, oldR, waveIndex) {
                         isPerfect: isPerfectResonance
                     });
                     
-                    // 共振反应：被击中的敌人发射环形波纹
-                    emitWave(enemy.x, enemy.y, 0, Math.PI*2, enemy.freq, 'enemy', enemy.id);
-                    enemy.resCool = CFG.resCooldown;
-                    
-                    // 敌人会警觉并追踪波纹来源位置
-                    if (enemy.state === 'idle' || enemy.state === 'alert' || enemy.state === 'patrol' || enemy.state === 'searching') {
-                        onEnemySensesPlayer(enemy, w.x, w.y);
-                    }
-                    
                     // 过载效果：基于能量阈值判断
                     const minCircumference = CFG.initialRadius * CFG.minSpread;
                     const minEnergyPerPoint = CFG.baseWaveEnergy / minCircumference;
@@ -974,15 +958,29 @@ function handleWaveEnemyCollision(w, oldR, waveIndex) {
                     const overloadThreshold = minTotalEnergy * 0.1;
                     
                     if (totalEnergy >= overloadThreshold) {
+                        // 进入stun状态，不发出受迫共振波
                         enemy.state = 'stunned';
-                        enemy.isPerfectStun = isPerfectResonance; // 标记是否完美共振
-                        enemy.timer = isPerfectResonance ? (CFG.stunTime * 1.5) : CFG.stunTime;
-                        enemy.stunWaveCooldown = 0; // 用于完美共振持续发波
+                        enemy.isPerfectStun = isPerfectResonance;
+                        enemy.timer = isPerfectResonance ? CFG.stunTime : CFG.stunTime / 2; // 完美共振10秒，普通共振5秒
+                        enemy.canBeDetonated = true; // 标记可处决
                         
+                        // 视觉反馈
+                        spawnParticles(enemy.x, enemy.y, '#ffff00', 15); // 黄色警告粒子
+                        
+                        // 日志消息
                         if (isPerfectResonance) {
-                            logMsg("PERFECT RESONANCE - TARGET DESTABILIZING");
+                            logMsg("TARGET CRITICAL - READY TO DETONATE");
                         } else {
-                            logMsg("TARGET STABILIZED");
+                            logMsg("TARGET STUNNED");
+                        }
+                    } else {
+                        // 能量不足，只进行普通的受迫发波，不进入stun
+                        emitWave(enemy.x, enemy.y, 0, Math.PI*2, enemy.freq, 'enemy', enemy.id);
+                        enemy.resCool = CFG.resCooldown;
+                        
+                        // 敌人会警觉并追踪波纹来源位置
+                        if (enemy.state === 'idle' || enemy.state === 'alert' || enemy.state === 'patrol' || enemy.state === 'searching') {
+                            onEnemySensesPlayer(enemy, w.x, w.y);
                         }
                     }
                 }
@@ -1031,7 +1029,7 @@ function updateWave(w, i) {
     }
     
     // 先检测与敌人的碰撞（分割波纹）
-    const enemyCollisionResult = handleWaveEnemyCollision(w, oldR, i);
+    const enemyCollisionResult = handleWaveEnemyInteraction(w, oldR, i);
     if (enemyCollisionResult === 'bounced' || enemyCollisionResult === 'penetrated') {
         // 波纹已被分割，标记删除
         w._toRemove = true;
@@ -1046,7 +1044,7 @@ function updateWave(w, i) {
     }
     
     // 检测与墙壁的碰撞
-    const wallCollisionResult = handleWaveWallCollision(w, oldR, i);
+    const wallCollisionResult = handleWaveWallInteraction(w, oldR, i);
     if (wallCollisionResult === 'bounced' || wallCollisionResult === 'penetrated') {
         w._toRemove = true;
         return;

@@ -3,32 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <title>Resonance: Stealth</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 
-<div id="screen-flash"></div>
+<div id="edge-glow"></div>
 
 <div id="ui-layer">
-    <div class="hud-row" id="hp-row">HEALTH: <span id="hp-val">60/60</span></div>
-    <div class="hud-row">ENERGY: <span id="energy-val">100/100</span></div>
+    <div class="hud-row" id="energy-row">ENERGY: <span id="energy-val">100/100</span></div>
+    <div class="hud-row" id="reserve-row">RESERVE: <span id="reserve-val">0</span></div>
     <div class="hud-row">TUNER: <span id="freq-box">150 Hz</span></div>
     <div class="hud-row" id="msg-log" style="color:#ffaa00; height:20px; font-size:14px;">System Online.</div>
 </div>
 
 <div id="world-ui-container"></div>
-<!-- 交互提示 -->
-<div id="execute-hint" class="interact-hint">[E] SIPHON CORE</div>
-<div id="pickup-hint" class="interact-hint">[E] PICKUP ENERGY</div>
+<!-- Interaction Hints -->
+<div id="pickup-hint" class="interact-hint">[E] PICKUP</div>
 
 <canvas id="gameCanvas"></canvas>
 
-<script src="config.js"></script>
-<script src="utils.js"></script>
-<script src="wave.js"></script>
-<script src="player.js"></script>
-<script src="enemy.js"></script>
-<script src="render.js"></script>
-<script src="game.js"></script>
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/entities/wave.js"></script>
+<script src="js/entities/player.js"></script>
+<script src="js/entities/enemy.js"></script>
+<script src="js/systems/render.js"></script>
+<script src="js/systems/game.js"></script>
 </body>
 </html>
