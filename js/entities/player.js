@@ -63,20 +63,30 @@ function releaseScan() {
     updateUI();
 }
 
-// 增加能量（拾取或奖励）
-function gainEnergy(amount) {
-    let remaining = amount;
+// 提升主能量（自动处理溢出到备用，并显示绿色闪烁）
+function addEnergy(amount) {
+    if (amount <= 0) return;
     
-    // 1. 先填主能量
     const spaceInMain = CFG.maxEnergy - state.p.en;
-    const toMain = Math.min(spaceInMain, remaining);
-    state.p.en += toMain;
-    remaining -= toMain;
+    const toMain = Math.min(spaceInMain, amount);
     
-    // 2. 溢出部分存入备用
-    if (remaining > 0) {
-        state.p.reserveEn += remaining;
+    if (toMain > 0) {
+        state.p.en += toMain;
+        // 主能量提升时，显示绿色边缘闪烁
+        flashEdgeGlow('green', 150);
     }
+    
+    // 溢出部分存入备用
+    const overflow = amount - toMain;
+    if (overflow > 0) {
+        addReserveEnergy(overflow);
+    }
+}
+
+// 提升备用能量
+function addReserveEnergy(amount) {
+    if (amount <= 0) return;
+    state.p.reserveEn += amount;
 }
 
 // 统一交互逻辑 (拾取 + 处决)
@@ -104,11 +114,11 @@ function tryInteract() {
         // 根据共振类型给予不同奖励
         if (Target.isPerfectStun) {
             // 完美共振：能量+100%
-            gainEnergy(CFG.maxEnergy);
+            addEnergy(CFG.maxEnergy);
             logMsg("ECHO BEACON DETONATED - CASCADE INITIATED");
         } else {
             // 普通共振：能量+50%
-            gainEnergy(CFG.maxEnergy * 0.5);
+            addEnergy(CFG.maxEnergy * 0.5);
             logMsg("ECHO BEACON DETONATED - AREA REVEALED");
         }
         
@@ -131,7 +141,7 @@ function tryInteract() {
         const item = items[0];
         if(item.type === 'energy') {
             // 能量瓶直接补充到备用能量
-            state.p.reserveEn += CFG.energyFlaskVal;
+            addReserveEnergy(CFG.energyFlaskVal);
             logMsg(`RESERVE ENERGY RESTORED (+${CFG.energyFlaskVal})`);
             spawnParticles(item.x, item.y, '#00ff00', 20);
             // 移除物品
@@ -188,12 +198,18 @@ function updateReserveEnergy() {
     if (state.keys.r && state.p.reserveEn > 0 && state.p.en < CFG.maxEnergy) {
         const needed = CFG.maxEnergy - state.p.en;
         const used = Math.min(needed, state.p.reserveEn);
-        state.p.en += used;
-        state.p.reserveEn -= used;
-        state.keys.r = false;
-        logMsg(`RESERVE TRANSFERRED (+${Math.floor(used)} ENERGY)`);
-        spawnParticles(state.p.x, state.p.y, '#33ccff', 15);
-        updateUI();
+        
+        if (used > 0) {
+            // 从备用能量中扣除
+            state.p.reserveEn -= used;
+            // 使用 addEnergy 提升主能量
+            addEnergy(used);
+            
+            state.keys.r = false;
+            logMsg(`RESERVE TRANSFERRED (+${Math.floor(used)} ENERGY)`);
+            spawnParticles(state.p.x, state.p.y, '#33ccff', 15);
+            updateUI();
+        }
     }
 }
 
@@ -223,6 +239,6 @@ function updatePlayer() {
     
     // 冷却时间
     if(state.p.invuln > 0) state.p.invuln--;
-    if(state.p.resCool > 0) state.p.resCool--;
+    if(state.p.resonanceCD > 0) state.p.resonanceCD--;
 }
 

@@ -29,7 +29,7 @@ const state = {
         en: CFG.maxEnergy, 
         reserveEn: 0, 
         invuln: 0,
-        resCool: 0, 
+        resonanceCD: 0, 
         grabParticleTimer: 0,
     },
     keys: { w:0, a:0, s:0, d:0, space:0, f:0, r:0, e:0 },

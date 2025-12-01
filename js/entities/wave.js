@@ -776,7 +776,7 @@ function handleWavePlayerInteraction(w, oldR, waveIndex) {
     }
     
     // 受迫共振：只在发生共振且冷却就绪时触发
-    if (isNormalResonance && state.p.resCool <= 0) {
+    if (isNormalResonance && state.p.resonanceCD <= 0) {
         // 估算击中玩家的总能量
         const playerDiameter = CFG.playerRadius * 2;
         const maxArcLength = w.r * (w.spread > 0.001 ? w.spread : 0.001);
@@ -804,7 +804,7 @@ function handleWavePlayerInteraction(w, oldR, waveIndex) {
         
         // 玩家被迫发出自发波（与敌人受迫共振对称）
         emitWave(state.p.x, state.p.y, 0, Math.PI * 2, state.freq, 'player');
-        state.p.resCool = CFG.resCooldown;
+        state.p.resonanceCD = CFG.resonanceCD;
         updateUI();
     }
     
@@ -939,16 +939,8 @@ function handleWaveEnemyInteraction(w, oldR, waveIndex) {
                 }
                 
                 // 触发共振效果
-                if (isNormalResonance && enemy.resCool <= 0) {
-                    // 记录共振轮廓回声（绿色）
-                    state.entities.echoes.push({
-                        x: enemy.x, y: enemy.y, r: enemy.r,
-                        type: 'enemy_resonance',
-                        life: 1.0,
-                        isPerfect: isPerfectResonance
-                    });
-                    
-                    // 过载效果：基于能量阈值判断
+                if (isNormalResonance) {
+                    // 先计算能量阈值
                     const minCircumference = CFG.initialRadius * CFG.minSpread;
                     const minEnergyPerPoint = CFG.baseWaveEnergy / minCircumference;
                     const standardEnemyR = 16;
@@ -957,8 +949,18 @@ function handleWaveEnemyInteraction(w, oldR, waveIndex) {
                     const minTotalEnergy = minEnergyPerPoint * standardCoveredArcLength;
                     const overloadThreshold = minTotalEnergy * 0.1;
                     
+                    // 层次1：视觉反馈（总是显示，让玩家知道发生了共振）
+                    // 如果冷却中且能量不足，只显示视觉反馈，不执行任何效果
+                    state.entities.echoes.push({
+                        x: enemy.x, y: enemy.y, r: enemy.r,
+                        type: 'enemy_resonance',
+                        life: 1.0,
+                        isPerfect: isPerfectResonance
+                    });
+                    
+                    // 层次2：高能量效果（忽略冷却，允许立即进入stun）
                     if (totalEnergy >= overloadThreshold) {
-                        // 进入stun状态，不发出受迫共振波
+                        // 进入stun状态，不发出受迫共振波，不设置冷却
                         enemy.state = 'stunned';
                         enemy.isPerfectStun = isPerfectResonance;
                         enemy.timer = isPerfectResonance ? CFG.stunTime : CFG.stunTime / 2; // 完美共振10秒，普通共振5秒
@@ -973,10 +975,12 @@ function handleWaveEnemyInteraction(w, oldR, waveIndex) {
                         } else {
                             logMsg("TARGET STUNNED");
                         }
-                    } else {
-                        // 能量不足，只进行普通的受迫发波，不进入stun
+                    }
+                    // 层次3：低能量效果（检查冷却，防止频繁发波）
+                    else if (enemy.resonanceCD <= 0) {
+                        // 能量不足，只进行普通的受迫发波，设置冷却
                         emitWave(enemy.x, enemy.y, 0, Math.PI*2, enemy.freq, 'enemy', enemy.id);
-                        enemy.resCool = CFG.resCooldown;
+                        enemy.resonanceCD = CFG.resonanceCD;
                         
                         // 敌人会警觉并追踪波纹来源位置
                         if (enemy.state === 'idle' || enemy.state === 'alert' || enemy.state === 'patrol' || enemy.state === 'searching') {
