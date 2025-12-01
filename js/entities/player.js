@@ -126,10 +126,11 @@ function tryInteract() {
 function updateStruggle() {
     if (!state.p.isGrabbed) {
         state.p.struggleProgress = 0;
+        state.p.grabParticleTimer = 0;
         return;
     }
     
-    // 每帧衰减进度（每秒值转换为每帧值，假设60fps）
+    // 每帧衰减进度
     state.p.struggleProgress = Math.max(0, state.p.struggleProgress - CFG.struggleProgressDecay);
     
     // 按F增加进度
@@ -145,15 +146,21 @@ function updateStruggle() {
         state.p.struggleProgress = 0;
         logMsg("BREAK FREE");
         spawnParticles(state.p.x, state.p.y, '#00ffff', 20);
+        return;
     }
     
-    // 被抓取时持续流失能量（每秒值转换为每帧值，假设60fps）
+    // 被抓取时持续流失能量
     state.p.en = Math.max(0, state.p.en - CFG.grabEnergyDrainRate);
     
-    // 能量归零时死亡
-    if (state.p.en <= 0) {
-        // Death will be handled by checkPlayerDeath()
+    // 每10帧生成一次青色粒子，表现能量流失
+    state.p.grabParticleTimer++;
+    if (state.p.grabParticleTimer >= 10) {
+        spawnParticles(state.p.x, state.p.y, '#00ffff', 20);
+        state.p.grabParticleTimer = 0;
     }
+    
+    // Energy zero death
+    // Death will be handled by checkPlayerDeath()
 }
 
 // 使用备用能量补充主能量（R键）
