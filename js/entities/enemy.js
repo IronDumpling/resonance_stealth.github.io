@@ -274,7 +274,7 @@ function updateEnemies() {
             if (!state.p.isGrabbed || state.p.grabberEnemy !== e) {
                 // 玩家已挣脱，恢复正常状态
                 e.state = 'alert';
-                e.grabCooldown = CFG.dmgCD; // 设置抓取冷却
+                e.grabCooldown = CFG.grabCD; // 设置抓取冷却
             }
             // 抓取状态下不移动，不更新其他逻辑
             return;
@@ -327,7 +327,7 @@ function updateEnemies() {
                 }
             }
         } else {
-            // 碰撞检测：抓取玩家（移除攻击伤害）
+            // 碰撞检测：抓取玩家
             if(dToP < 25 && !state.p.isGrabbed && e.grabCooldown <= 0 && 
                e.state !== 'stunned' && e.state !== 'detonating') {
                 // 抓取玩家
@@ -335,7 +335,7 @@ function updateEnemies() {
                 state.p.grabberEnemy = e;
                 state.p.struggleProgress = 0;
                 e.state = 'grabbing';
-                e.grabCooldown = CFG.dmgCD; // 设置抓取冷却
+                e.grabCooldown = CFG.grabCD; // 设置抓取冷却
                 logMsg("GRABBED!");
             }
             updateEnemyMovement(e);

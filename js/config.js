@@ -16,7 +16,7 @@ const CFG = {
     waveMaxDist: 1500,  // 增大扫描范围
     
     // 聚焦参数
-    focusSpeed: 0.015,              // 蓄力增长速度
+    focusSpeed: 0.015,             // 蓄力增长速度
     focusChargeDelay: 0.15,        // 蓄力延迟时间（秒），期间角度不缩小
     minSpread: 0.08, 
     maxSpread: Math.PI * 2,
@@ -32,14 +32,14 @@ const CFG = {
     eSpeedPatrol: 0.6,
     eSpeedChase: 1.5,
     stunTime: 600, 
-    dmgCD: 60,          // 抓取冷却时间（帧数）
+    grabCD: 60,          // 抓取冷却时间（帧数）
     resCooldown: 120,
     
     // 抓取与挣脱
     struggleProgressMax: 100,      // 挣脱进度最大值
-    struggleProgressDecay: 0.2,      // 挣脱进度每帧衰减量
+    struggleProgressDecay: 0.2,    // 挣脱进度每帧衰减量
     struggleProgressGain: 15,      // 每次按F增加的挣脱进度
-    grabEnergyDrainRate: 0.2,        // 被抓取时每帧能量流失量
+    grabEnergyDrainRate: 0.1,      // 被抓取时每帧能量流失量
     
     // 波纹能量
     baseWaveEnergy: 10000,   // 波纹固定基础能量N
