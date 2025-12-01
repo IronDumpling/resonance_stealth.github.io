@@ -794,12 +794,12 @@ function handleWavePlayerInteraction(w, oldR, waveIndex) {
             logMsg("SYSTEM OVERLOAD: ENERGY DRAIN");
         }
         
-        // 高能量密度下的视觉反馈（触发边缘红光）
+        // 高能量密度下的视觉反馈（触发边缘红光闪烁）
         const overloadThreshold = CFG.baseWaveEnergy * CFG.energyThreshold;
         if (totalEnergyOnPlayer >= overloadThreshold) {
-            state.edgeGlowIntensity = 1.0; // 触发红色边缘发光
+            flashEdgeGlow('red', 150); // 高能量：较长的红色闪烁
         } else {
-            state.edgeGlowIntensity = 0.6; // 较弱的边缘发光
+            flashEdgeGlow('red', 100); // 普通能量：较短的红色闪烁
         }
         
         // 玩家被迫发出自发波（与敌人受迫共振对称）

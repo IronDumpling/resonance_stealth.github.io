@@ -1,7 +1,7 @@
 // 主游戏逻辑
 
 // 全局变量（在HTML中初始化）
-let canvas, ctx, uiContainer, pickupHint, screenFlash, edgeGlow;
+let canvas, ctx, uiContainer, pickupHint, edgeGlow;
 
 // 初始化全局变量
 function initGlobals() {
@@ -9,7 +9,6 @@ function initGlobals() {
     ctx = canvas.getContext('2d');
     uiContainer = document.getElementById('world-ui-container');
     pickupHint = document.getElementById('pickup-hint');
-    screenFlash = document.getElementById('screen-flash');
     edgeGlow = document.getElementById('edge-glow');
     
     canvas.width = window.innerWidth;
@@ -26,13 +25,13 @@ const state = {
         grabberEnemy: null,      // 抓取玩家的敌人引用
         struggleProgress: 0,      // 挣脱进度 (0-100)
         isCharging: false,
+        chargeStartTime: 0,       // 开始蓄力的时间戳（秒）
         en: CFG.maxEnergy, 
         reserveEn: 0, 
         invuln: 0,
         resCool: 0, 
         grabParticleTimer: 0,
     },
-    edgeGlowIntensity: 0,         // 红色边缘发光强度 (0-1)
     keys: { w:0, a:0, s:0, d:0, space:0, f:0, r:0, e:0 },
     mouse: { x:0, y:0 },
     freq: 150,
@@ -133,7 +132,7 @@ function init() {
     state.p.isGrabbed = false;
     state.p.grabberEnemy = null;
     state.p.struggleProgress = 0;
-    state.edgeGlowIntensity = 0;
+    state.p.chargeStartTime = 0;
     
     state.entities.walls = [];
     state.entities.items = [];
@@ -319,12 +318,6 @@ function update() {
     updateInteractionHints(hasPickupTarget);
     
     updateParticlesAndEchoes();
-    
-    // 边缘红光衰减
-    if(state.edgeGlowIntensity > 0) {
-        state.edgeGlowIntensity = Math.max(0, state.edgeGlowIntensity - 0.05);
-    }
-    
     updateUI();
 }
 

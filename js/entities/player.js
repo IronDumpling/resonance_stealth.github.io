@@ -4,11 +4,31 @@
 function updateFocus() {
     if(state.keys.space) {
         if(!state.p.isCharging) {
+            // 开始蓄力：记录开始时间，重置聚焦等级
             state.p.isCharging = true;
             state.focusLevel = 0;
+            state.p.chargeStartTime = Date.now() / 1000; // 记录开始时间（秒）
         }
+        
         if(state.p.isCharging) {
-            state.focusLevel = Math.min(1, state.focusLevel + 0.02);
+            // 计算已蓄力时间（秒）
+            const chargeTime = (Date.now() / 1000) - state.p.chargeStartTime;
+            
+            // 蓄力延迟期角度不缩小，focusLevel 保持为 0
+            if(chargeTime >= CFG.focusChargeDelay) {
+                // 延迟期过后，开始缓慢增加 focusLevel
+                // 使用更平滑的增长曲线增强蓄力感（平方根曲线）
+                const effectiveChargeTime = chargeTime - CFG.focusChargeDelay;
+                const normalizedTime = Math.min(1, effectiveChargeTime / 3); // 3秒达到最大聚焦
+                state.focusLevel = Math.min(1, Math.sqrt(normalizedTime));
+            }
+            // 如果还在延迟期内，focusLevel 保持为 0（已在初始化时设置）
+        }
+    } else {
+        // 松开 Space 键时，重置蓄力状态
+        if(state.p.isCharging) {
+            state.p.isCharging = false;
+            state.p.chargeStartTime = 0;
         }
     }
 }
@@ -83,7 +103,7 @@ function tryInteract() {
         
         // 根据共振类型给予不同奖励
         if (Target.isPerfectStun) {
-            // 完美共振：能量回满
+            // 完美共振：能量+100%
             gainEnergy(CFG.maxEnergy);
             logMsg("ECHO BEACON DETONATED - CASCADE INITIATED");
         } else {
@@ -93,7 +113,7 @@ function tryInteract() {
         }
         
         // 视觉反馈
-        flashScreen('white', 100); // 屏幕白闪
+        flashEdgeGlow('white', 100); // 边缘白闪
         spawnParticles(Target.x, Target.y, '#00ffff', 50); // 青色粒子
         
         // 不立即移除敌人，让 updateEnemies 在下一帧处理激发态并释放波

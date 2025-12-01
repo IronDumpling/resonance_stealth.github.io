@@ -284,21 +284,5 @@ function draw() {
         ctx.fillText('[F] STRUGGLE', canvas.width / 2, barY - 25);
     }
     
-    // 绘制红色边缘发光效果
-    if (state.edgeGlowIntensity > 0) {
-        const intensity = state.edgeGlowIntensity;
-        const borderWidth = 8;
-        const glowColor = `rgba(255, 0, 0, ${intensity * 0.8})`;
-        
-        ctx.fillStyle = glowColor;
-        // 上边缘
-        ctx.fillRect(0, 0, canvas.width, borderWidth);
-        // 下边缘
-        ctx.fillRect(0, canvas.height - borderWidth, canvas.width, borderWidth);
-        // 左边缘
-        ctx.fillRect(0, 0, borderWidth, canvas.height);
-        // 右边缘
-        ctx.fillRect(canvas.width - borderWidth, 0, borderWidth, canvas.height);
-    }
 }
 

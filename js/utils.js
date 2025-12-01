@@ -96,15 +96,47 @@ function updateUI() {
     document.getElementById('freq-box').innerText = Math.floor(state.freq) + " Hz";
     
     // 更新边缘红光显示（能量低于30%或被grab时显示）
-    const shouldShowEdgeGlow = energyPercent < 0.3 || state.p.isGrabbed;
-    if (edgeGlow) {
-        edgeGlow.style.opacity = shouldShowEdgeGlow ? '1' : '0';
+    // 只有在没有闪烁时才更新持续显示
+    if (edgeGlow && !edgeGlowFlashTimer) {
+        const shouldShowEdgeGlow = energyPercent < 0.3 || state.p.isGrabbed;
+        if (shouldShowEdgeGlow) {
+            // 确保是红色
+            edgeGlow.style.boxShadow = 'inset 0 0 20px 8px rgba(255, 0, 0, 0.8)';
+            edgeGlow.style.opacity = '1';
+        } else {
+            edgeGlow.style.opacity = '0';
+        }
     }
 }
 
-function flashScreen(color, duration) {
-    screenFlash.style.backgroundColor = color; screenFlash.style.opacity = 0.6;
-    setTimeout(() => screenFlash.style.opacity = 0, duration);
+// edge-glow 闪烁效果
+let edgeGlowFlashTimer = null;
+
+function flashEdgeGlow(color, duration) {
+    if (!edgeGlow) return;
+    
+    // 清除之前的闪烁定时器
+    if (edgeGlowFlashTimer) {
+        clearTimeout(edgeGlowFlashTimer);
+    }
+    
+    // 设置颜色
+    if (color === 'white') {
+        edgeGlow.style.boxShadow = 'inset 0 0 20px 8px rgba(255, 255, 255, 0.8)';
+    } else if (color === 'red') {
+        edgeGlow.style.boxShadow = 'inset 0 0 20px 8px rgba(255, 0, 0, 0.8)';
+    }
+    
+    // 显示闪烁
+    edgeGlow.style.opacity = '1';
+    
+    // 设置淡出
+    edgeGlowFlashTimer = setTimeout(() => {
+        edgeGlow.style.opacity = '0';
+        edgeGlowFlashTimer = null;
+        // 恢复红色（如果能量低或被grab）
+        updateUI();
+    }, duration);
 }
 
 // 检查玩家死亡（能量归零）

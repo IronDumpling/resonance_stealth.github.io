@@ -16,7 +16,8 @@ const CFG = {
     waveMaxDist: 1500,  // 增大扫描范围
     
     // 聚焦参数
-    focusSpeed: 0.02,
+    focusSpeed: 0.015,              // 蓄力增长速度
+    focusChargeDelay: 0.15,        // 蓄力延迟时间（秒），期间角度不缩小
     minSpread: 0.08, 
     maxSpread: Math.PI * 2,
     analyzeThreshold: 0.5,
@@ -66,7 +67,7 @@ const CFG = {
 
 // --- Instruction 定义 ---
 const INSTRUCTIONS = [
-    { id: 0, text: "WASD移动\n鼠标移动转向", distance: 0 },
+    { id: 0, text: "WASD移动\n鼠标移动转向\n对于波纹生物，能量就是生命", distance: 0 },
     { id: 1, text: "波纹生物都有自己的频率\n它们会被同频的波纹吸引", distance: 50 },
     { id: 2, text: "短按空格释放波，长按空格聚焦波\n波纹越聚焦，消耗能量越大", distance: 200 },
     { id: 3, text: "转动鼠标滚轮调整频率\n频率越高，消耗能量越大", distance: 350 },
