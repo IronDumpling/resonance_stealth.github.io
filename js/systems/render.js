@@ -231,6 +231,24 @@ function draw() {
     
     ctx.restore();
 
+    // 绘制辅助瞄准线（如果能量足够）- 在玩家绘制之前，使用世界坐标
+    if(state.p.shouldShowAimLine) {
+        ctx.strokeStyle = 'rgba(255, 0, 0, 0.6)'; // 红色半透明
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        
+        // 起点：玩家位置（世界坐标）
+        ctx.moveTo(state.p.x, state.p.y);
+        
+        // 终点：玩家位置 + 朝向方向 * 长度（世界坐标）
+        const aimLineLength = CFG.pViewDist * 2; // 视野距离的两倍
+        const endX = state.p.x + Math.cos(state.p.a) * aimLineLength;
+        const endY = state.p.y + Math.sin(state.p.a) * aimLineLength;
+        ctx.lineTo(endX, endY);
+        
+        ctx.stroke();
+    }
+    
     // 玩家
     ctx.save();
     ctx.translate(state.p.x, state.p.y); ctx.rotate(state.p.a);
@@ -244,6 +262,7 @@ function draw() {
         ctx.arc(0,0, 100 + state.focusLevel*200, -spread/2, spread/2);
         ctx.fill();
     }
+    
     ctx.restore();
 
     state.entities.particles.forEach(p => {

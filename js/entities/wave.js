@@ -1,5 +1,14 @@
 // 波纹相关逻辑
 
+// 计算波纹在指定半径和角度下的能量密度
+// 复用 updateWave 中的计算逻辑
+function calculateWaveEnergyPerPoint(baseEnergy, radius, spread) {
+    const isFullCircle = spread > Math.PI * 1.9;
+    const circumference = isFullCircle ? (2 * Math.PI * radius) : (radius * spread);
+    const energyPerPoint = baseEnergy / (circumference > 0.01 ? circumference : 0.01);
+    return energyPerPoint;
+}
+
 function emitWave(x, y, angle, spread, freq, source, ownerId) {
     // 频率影响基础能量：低频(100Hz)=0.5x，中频(200Hz)=1x，高频(300Hz)=1.5x
     const freqFactor = 0.5 + (freq - CFG.freqMin) / (CFG.freqMax - CFG.freqMin);

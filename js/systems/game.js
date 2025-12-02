@@ -31,6 +31,7 @@ const state = {
         invuln: 0,
         resonanceCD: 0, 
         grabParticleTimer: 0,
+        shouldShowAimLine: false,  // 是否显示辅助瞄准线
     },
     keys: { w:0, a:0, s:0, d:0, space:0, f:0, r:0, e:0 },
     mouse: { x:0, y:0 },
@@ -133,6 +134,7 @@ function init() {
     state.p.grabberEnemy = null;
     state.p.struggleProgress = 0;
     state.p.chargeStartTime = 0;
+    state.p.shouldShowAimLine = false;
     
     state.entities.walls = [];
     state.entities.items = [];

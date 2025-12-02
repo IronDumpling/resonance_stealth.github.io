@@ -23,12 +23,27 @@ function updateFocus() {
                 state.focusLevel = Math.min(1, Math.sqrt(normalizedTime));
             }
             // 如果还在延迟期内，focusLevel 保持为 0（已在初始化时设置）
+            
+            // 计算当前蓄力状态下的预期波纹能量，判断是否显示辅助瞄准线
+            const currentSpread = lerp(CFG.maxSpread, CFG.minSpread, state.focusLevel);
+            
+            // 逻辑计算 baseEnergy
+            const freqFactor = 0.5 + (state.freq - CFG.freqMin) / (CFG.freqMax - CFG.freqMin);
+            const baseEnergy = CFG.baseWaveEnergy * freqFactor;
+            const energyPerPoint = calculateWaveEnergyPerPoint(baseEnergy, CFG.initialRadius, currentSpread);
+             
+            // 如果能量达到 infoLevelAnalyze，显示辅助瞄准线
+            state.p.shouldShowAimLine = energyPerPoint >= CFG.infoLevelAnalyze;
+        } else {
+            // 不在蓄力时，不显示辅助瞄准线
+            state.p.shouldShowAimLine = false;
         }
     } else {
         // 松开 Space 键时，重置蓄力状态
         if(state.p.isCharging) {
             state.p.isCharging = false;
             state.p.chargeStartTime = 0;
+            state.p.shouldShowAimLine = false;
         }
     }
 }
@@ -59,7 +74,8 @@ function releaseScan() {
     emitWave(state.p.x, state.p.y, state.p.a, currentSpread, state.freq, 'player');
     
     state.p.isCharging = false; 
-    state.focusLevel = 0; 
+    state.focusLevel = 0;
+    state.p.shouldShowAimLine = false; // 释放时不显示辅助瞄准线
     updateUI();
 }
 
