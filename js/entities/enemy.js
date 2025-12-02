@@ -298,7 +298,7 @@ function updateEnemies() {
                 // 普通共振：立即释放一次波，然后死亡
                 emitWave(e.x, e.y, 0, Math.PI*2, e.freq, 'pulse', e.id);
                 enemiesToRemove.push(e);
-                spawnParticles(e.x, e.y, '#00ffff', 50);
+                spawnParticles(e.x, e.y, '#ff0000', 50);
             } else {
                 // 完美共振：持续释放多次波，频率递减
                 // 初始化属性
@@ -310,7 +310,7 @@ function updateEnemies() {
                 // 每隔60帧释放一次波
                 if (e.detonatePulseTimer <= 0) {
                     emitWave(e.x, e.y, 0, Math.PI*2, e.detonateCurrentFreq, 'pulse', e.id);
-                    spawnParticles(e.x, e.y, '#00ffff', 30);
+                    spawnParticles(e.x, e.y, '#ff0000', 30);
                     
                     // 频率递减50Hz，最低100Hz
                     e.detonateCurrentFreq = Math.max(100, e.detonateCurrentFreq - 50);
@@ -318,7 +318,7 @@ function updateEnemies() {
                     // 如果频率已经降到100Hz，释放完最后一波后死亡
                     if (e.detonateCurrentFreq <= 100) {
                         enemiesToRemove.push(e);
-                        spawnParticles(e.x, e.y, '#00ffff', 100);
+                        spawnParticles(e.x, e.y, '#ff0000', 100);
                     } else {
                         e.detonatePulseTimer = 60; // 重置计时器（1秒）
                     }

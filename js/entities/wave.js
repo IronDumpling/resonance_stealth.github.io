@@ -980,9 +980,6 @@ function handleWaveEnemyInteraction(w, oldR, waveIndex) {
                         enemy.timer = isPerfectResonance ? CFG.stunTime : CFG.stunTime / 2; // 完美共振10秒，普通共振5秒
                         enemy.canBeDetonated = true; // 标记可处决
                         
-                        // 视觉反馈
-                        spawnParticles(enemy.x, enemy.y, '#ffff00', 15); // 黄色警告粒子
-                        
                         // 日志消息
                         if (isPerfectResonance) {
                             logMsg("TARGET CRITICAL - READY TO DETONATE");
@@ -1116,6 +1113,9 @@ function handleWaveToWaveInteraction() {
 
 // 更新单个波纹
 function updateWave(w, i) {
+    // 如果波纹已被标记删除（例如弹反触发），直接返回，不进行任何交互
+    if (w._toRemove) return;
+    
     const oldR = w.r;
     w.r += CFG.waveSpeed;
     

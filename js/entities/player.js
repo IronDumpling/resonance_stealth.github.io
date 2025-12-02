@@ -202,7 +202,7 @@ function tryInteract() {
         
         // 视觉反馈
         flashEdgeGlow('white', 100); // 边缘白闪
-        spawnParticles(Target.x, Target.y, '#00ffff', 50); // 青色粒子
+        spawnParticles(Target.x, Target.y, '#ff0000', 50); // 红色粒子
         
         // 不立即移除敌人，让 updateEnemies 在下一帧处理激发态并释放波
         updateUI();
