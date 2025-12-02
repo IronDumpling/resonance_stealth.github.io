@@ -1,16 +1,13 @@
 // 渲染相关函数
 
-function draw() {
+// 绘制背景
+function drawBackground() {
     ctx.fillStyle = '#000510';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
 
-    // 应用相机变换
-    ctx.save();
-    ctx.translate(canvas.width / 2, canvas.height / 2);
-    ctx.scale(CFG.cameraFOV, CFG.cameraFOV);
-    ctx.translate(-state.camera.x, -state.camera.y);
-
-    // 绘制回声
+// 绘制回声
+function drawEchoes() {
     state.entities.echoes.forEach(e => {
         ctx.globalAlpha = e.life;
         
@@ -92,8 +89,10 @@ function draw() {
         }
     });
     ctx.globalAlpha = 1;
-    
-    // 绘制墙壁轮廓（穿透时显示）
+}
+
+// 绘制墙壁轮廓（穿透时显示）
+function drawWallEchoes() {
     state.entities.wallEchoes.forEach(we => {
         const alpha = we.life * 0.6; // 最大透明度60%
         ctx.globalAlpha = alpha;
@@ -102,8 +101,10 @@ function draw() {
         ctx.strokeRect(we.wall.x, we.wall.y, we.wall.w, we.wall.h);
     });
     ctx.globalAlpha = 1;
+}
 
-    // 绘制波纹
+// 绘制波纹
+function drawWaves() {
     // 计算最大能量（300Hz、5度角、初始半径）
     const maxEnergySpread = 5 * Math.PI / 180; // 5度
     const maxEnergyCircumference = CFG.initialRadius * maxEnergySpread;
@@ -146,7 +147,10 @@ function draw() {
         ctx.lineWidth = w.spread < 1 ? 5 : 3;
         ctx.stroke();
     });
+}
 
+// 绘制视野裁剪和光照
+function drawVisibilityAndLighting() {
     // 视野裁剪区
     const visPoly = getVisibiltyPolygon(state.p.x, state.p.y, state.p.a);
     ctx.save();
@@ -161,8 +165,11 @@ function draw() {
     grad.addColorStop(0, 'rgba(200, 255, 255, 0.15)');
     grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
     ctx.fillStyle = grad; ctx.fill();
+}
 
-    // 实体 (墙壁, 敌人, 物品)
+// 绘制实体（墙壁、instructions、物品、敌人）
+function drawEntities() {
+    // 绘制墙壁
     state.entities.walls.forEach(w => { 
         ctx.fillStyle = w.color || '#222'; 
         ctx.strokeStyle = w.color || '#555';
@@ -206,6 +213,7 @@ function draw() {
         ctx.restore();
     });
 
+    // 绘制物品
     state.entities.items.forEach(i => {
         if(i.visibleTimer > 0) {
             ctx.fillStyle = '#00ff00'; ctx.shadowBlur = 10; ctx.shadowColor = '#00ff00';
@@ -217,6 +225,7 @@ function draw() {
         }
     });
 
+    // 绘制敌人
     state.entities.enemies.forEach(e => {
         // 绘制敌人本体
         ctx.beginPath();
@@ -228,28 +237,30 @@ function draw() {
         }
         ctx.fill();
     });
-    
-    ctx.restore();
+}
 
-    // 绘制辅助瞄准线（如果能量足够）- 在玩家绘制之前，使用世界坐标
-    if(state.p.shouldShowAimLine) {
-        ctx.strokeStyle = 'rgba(255, 0, 0, 0.6)'; // 红色半透明
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        
-        // 起点：玩家位置（世界坐标）
-        ctx.moveTo(state.p.x, state.p.y);
-        
-        // 终点：玩家位置 + 朝向方向 * 长度（世界坐标）
-        const aimLineLength = CFG.pViewDist * 2; // 视野距离的两倍
-        const endX = state.p.x + Math.cos(state.p.a) * aimLineLength;
-        const endY = state.p.y + Math.sin(state.p.a) * aimLineLength;
-        ctx.lineTo(endX, endY);
-        
-        ctx.stroke();
-    }
+// 绘制辅助瞄准线
+function drawAimLine() {
+    if(!state.p.shouldShowAimLine) return;
     
-    // 玩家
+    ctx.strokeStyle = 'rgba(255, 0, 0, 0.6)'; // 红色半透明
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    
+    // 起点：玩家位置（世界坐标）
+    ctx.moveTo(state.p.x, state.p.y);
+    
+    // 终点：玩家位置 + 朝向方向 * 长度（世界坐标）
+    const aimLineLength = CFG.pViewDist * 5; // 视野距离的两倍
+    const endX = state.p.x + Math.cos(state.p.a) * aimLineLength;
+    const endY = state.p.y + Math.sin(state.p.a) * aimLineLength;
+    ctx.lineTo(endX, endY);
+    
+    ctx.stroke();
+}
+
+// 绘制玩家
+function drawPlayer() {
     ctx.save();
     ctx.translate(state.p.x, state.p.y); ctx.rotate(state.p.a);
     ctx.fillStyle = state.p.invuln > 0 ? '#fff' : '#00ffff';
@@ -264,44 +275,90 @@ function draw() {
     }
     
     ctx.restore();
+}
 
+// 绘制粒子
+function drawParticles() {
     state.entities.particles.forEach(p => {
         ctx.globalAlpha = p.life; ctx.fillStyle = p.c;
         ctx.beginPath(); ctx.arc(p.x,p.y,p.s,0,Math.PI*2); ctx.fill();
     });
     ctx.globalAlpha = 1;
+}
+
+// 绘制挣脱进度条
+function drawStruggleBar() {
+    if (!state.p.isGrabbed) return;
+    
+    const barWidth = 400;
+    const barHeight = 30;
+    const barX = (canvas.width - barWidth) / 2;
+    const barY = canvas.height - 100;
+    const progress = state.p.struggleProgress / CFG.struggleProgressMax;
+    
+    // 背景
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.fillRect(barX, barY, barWidth, barHeight);
+    
+    // 进度条
+    ctx.fillStyle = '#ff0000';
+    ctx.fillRect(barX + 2, barY + 2, (barWidth - 4) * progress, barHeight - 4);
+    
+    // 边框
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(barX, barY, barWidth, barHeight);
+    
+    // 文字
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 20px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('[F] STRUGGLE', canvas.width / 2, barY - 25);
+}
+
+// 主绘制函数
+function draw() {
+    // 绘制背景
+    drawBackground();
+
+    // 应用相机变换
+    ctx.save();
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.scale(CFG.cameraFOV, CFG.cameraFOV);
+    ctx.translate(-state.camera.x, -state.camera.y);
+
+    // 绘制回声
+    drawEchoes();
+    
+    // 绘制墙壁轮廓
+    drawWallEchoes();
+
+    // 绘制波纹
+    drawWaves();
+
+    // 绘制视野裁剪和光照
+    drawVisibilityAndLighting();
+
+    // 绘制实体（墙壁、instructions、物品、敌人）
+    drawEntities();
+    
+    // 恢复视野裁剪
+    ctx.restore();
+
+    // 绘制辅助瞄准线（在相机变换内，但在玩家绘制之前）
+    drawAimLine();
+    
+    // 绘制玩家
+    drawPlayer();
+
+    // 绘制粒子
+    drawParticles();
     
     // 恢复相机变换
     ctx.restore();
     
-    // 绘制挣脱进度条（被抓取时显示）
-    if (state.p.isGrabbed) {
-        const barWidth = 400;
-        const barHeight = 30;
-        const barX = (canvas.width - barWidth) / 2;
-        const barY = canvas.height - 100;
-        const progress = state.p.struggleProgress / CFG.struggleProgressMax;
-        
-        // 背景
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-        ctx.fillRect(barX, barY, barWidth, barHeight);
-        
-        // 进度条
-        ctx.fillStyle = '#ff0000';
-        ctx.fillRect(barX + 2, barY + 2, (barWidth - 4) * progress, barHeight - 4);
-        
-        // 边框
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(barX, barY, barWidth, barHeight);
-        
-        // 文字
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 20px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('[F] STRUGGLE', canvas.width / 2, barY - 25);
-    }
-    
+    // 绘制UI（挣脱进度条，不受相机变换影响）
+    drawStruggleBar();
 }
 
