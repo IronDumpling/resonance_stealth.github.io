@@ -176,6 +176,21 @@ function drawWallEchoes() {
         ctx.strokeStyle = we.wall.color || '#888';
         ctx.lineWidth = 2;
         ctx.strokeRect(we.wall.x, we.wall.y, we.wall.w, we.wall.h);
+        
+        // 如果瞄准线碰撞到墙壁，显示墙壁信息
+        if (state.p.aimLineHit && state.p.aimLineHit.type === 'wall' && state.p.aimLineHit.wall === we.wall) {
+            const centerX = we.wall.x + we.wall.w / 2;
+            const centerY = we.wall.y + we.wall.h / 2;
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const blockFreqText = `BLOCK: ${we.wall.blockFreq}Hz`;
+            const absorbedText = `ABSORBED: ${Math.floor(we.absorbedEnergy || 0)}`;
+            ctx.fillText(blockFreqText, centerX, centerY - 10);
+            ctx.fillText(absorbedText, centerX, centerY + 10);
+        }
     });
     ctx.globalAlpha = 1;
 }
@@ -242,6 +257,7 @@ function drawVisibilityAndLighting() {
     grad.addColorStop(0, 'rgba(200, 255, 255, 0.15)');
     grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
     ctx.fillStyle = grad; ctx.fill();
+    // 注意：不在这里恢复，让调用者决定何时恢复clip
 }
 
 // 绘制实体（墙壁、instructions、物品、敌人）
@@ -309,10 +325,15 @@ function drawEntities() {
         ctx.arc(e.x, e.y, e.r, 0, Math.PI*2);
         if(e.state === 'stunned') {
             ctx.fillStyle = '#333'; ctx.strokeStyle = '#555'; ctx.lineWidth = 1; ctx.stroke();
+        } else if(e.state === 'dormant') {
+            // 休眠状态：灰色/半透明
+            ctx.globalAlpha = 0.5;
+            ctx.fillStyle = '#666'; ctx.strokeStyle = '#888'; ctx.lineWidth = 1; ctx.stroke();
         } else {
             ctx.fillStyle = '#111'; ctx.strokeStyle = '#333'; ctx.stroke();
         }
         ctx.fill();
+        ctx.globalAlpha = 1;
     });
 }
 
@@ -327,12 +348,19 @@ function drawAimLine() {
     // 起点：玩家位置（世界坐标）
     ctx.moveTo(state.p.x, state.p.y);
     
-    // 终点：玩家位置 + 朝向方向 * 长度（世界坐标）
-    const aimLineLength = CFG.pViewDist * 5; // 视野距离的两倍
-    const endX = state.p.x + Math.cos(state.p.a) * aimLineLength;
-    const endY = state.p.y + Math.sin(state.p.a) * aimLineLength;
-    ctx.lineTo(endX, endY);
+    // 终点：根据raycast结果或最大长度
+    const maxLength = CFG.pViewDist * 2;
+    let endX, endY;
     
+    if (state.p.aimLineHit) {
+        endX = state.p.aimLineHit.x;
+        endY = state.p.aimLineHit.y;
+    } else {
+        endX = state.p.x + Math.cos(state.p.a) * maxLength;
+        endY = state.p.y + Math.sin(state.p.a) * maxLength;
+    }
+    
+    ctx.lineTo(endX, endY);
     ctx.stroke();
 }
 
@@ -414,22 +442,22 @@ function draw() {
     // 绘制波纹
     drawWaves();
 
-    // 绘制视野裁剪和光照
+    // 绘制视野裁剪和光照（设置clip）
     drawVisibilityAndLighting();
 
-    // 绘制实体（墙壁、instructions、物品、敌人）
+    // 绘制实体（墙壁、instructions、物品、敌人，在clip内）
     drawEntities();
     
-    // 恢复视野裁剪
+    // 恢复视野裁剪（恢复clip）
     ctx.restore();
-
-    // 绘制辅助瞄准线（在相机变换内，但在玩家绘制之前）
-    drawAimLine();
     
-    // 绘制玩家
+    // 绘制玩家（在clip外，但在相机变换内）
     drawPlayer();
+    
+    // 绘制辅助瞄准线（在相机变换内）
+    drawAimLine();
 
-    // 绘制粒子
+    // 绘制粒子（在相机变换内）
     drawParticles();
     
     // 恢复相机变换

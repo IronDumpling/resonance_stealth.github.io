@@ -32,6 +32,10 @@ const state = {
         resonanceCD: 0, 
         grabParticleTimer: 0,
         shouldShowAimLine: false,  // 是否显示辅助瞄准线
+        overload: 0,               // 玩家过载值（与敌人一致）
+        isGrabbingEnemy: null,     // 当前抓取的敌人引用
+        grabHintElement: null,     // Grab Hint UI元素引用
+        aimLineHit: null,          // 瞄准线raycast碰撞结果
     },
     keys: { w:0, a:0, s:0, d:0, space:0, f:0, r:0, e:0 },
     mouse: { x:0, y:0 },
@@ -125,6 +129,13 @@ function spawnItem(type) {
     }
 }
 
+// 在敌人位置生成核心物品
+function spawnCoreAtEnemy(enemy) {
+    state.entities.items.push({
+        type: 'core_hot', x: enemy.x, y: enemy.y, r: 10, visibleTimer: 120 // 可见2秒
+    });
+}
+
 function init() {
     // 初始化玩家位置
     state.p.x = canvas.width/2;
@@ -135,6 +146,9 @@ function init() {
     state.p.struggleProgress = 0;
     state.p.chargeStartTime = 0;
     state.p.shouldShowAimLine = false;
+    state.p.overload = 0;
+    state.p.isGrabbingEnemy = null;
+    state.p.aimLineHit = null;
     
     state.entities.walls = [];
     state.entities.items = [];

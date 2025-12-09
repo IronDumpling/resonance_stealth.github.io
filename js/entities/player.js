@@ -167,8 +167,25 @@ function addReserveEnergy(amount) {
     state.p.reserveEn += amount;
 }
 
-// 统一交互逻辑 (拾取 + 处决)
+// 统一交互逻辑 (暗杀抓取 + 拾取 + 处决)
 function tryInteract() {
+    // 0. 优先尝试暗杀抓取（未警觉的敌人）
+    if (!state.p.isGrabbed && !state.p.isGrabbingEnemy) {
+        const stealthTargets = state.entities.enemies.filter(
+            e => (e.state === 'patrol' || e.state === 'idle') &&
+            dist(e.x, e.y, state.p.x, state.p.y) < CFG.stealthGrabDistance &&
+            e.state !== 'dormant'
+        );
+        
+        if (stealthTargets.length > 0) {
+            const target = stealthTargets[0];
+            state.p.isGrabbingEnemy = target;
+            target.state = 'grabbed_by_player';
+            logMsg("STEALTH GRAB INITIATED");
+            return;
+        }
+    }
+    
     // 1. 优先尝试处决
     const enemies = state.entities.enemies.filter(
         e => e.state === 'stunned' && 
@@ -189,15 +206,27 @@ function tryInteract() {
         // 立即清除可处决标记，防止重复触发
         Target.canBeDetonated = false;
         
-        // 根据共振类型给予不同奖励
-        if (Target.isPerfectStun) {
-            // 完美共振：能量+100%
-            addEnergy(CFG.maxEnergy);
-            logMsg("ECHO BEACON DETONATED - CASCADE INITIATED");
+        // 根据敌人能量决定是否释放共振波
+        if (Target.en > 0) {
+            // 能量>0：保持现有逻辑释放共振波
+            // 根据共振类型给予不同奖励
+            if (Target.isPerfectStun) {
+                // 完美共振：能量+100%
+                addEnergy(CFG.maxEnergy);
+                logMsg("ECHO BEACON DETONATED - CASCADE INITIATED");
+            } else {
+                // 普通共振：能量+50%
+                addEnergy(CFG.maxEnergy * 0.5);
+                logMsg("ECHO BEACON DETONATED - AREA REVEALED");
+            }
+            
+            // 在敌人位置生成热核心物品
+            state.entities.items.push({
+                type: 'core_hot', x: Target.x, y: Target.y, r: 10, visibleTimer: 120
+            });
         } else {
-            // 普通共振：能量+50%
-            addEnergy(CFG.maxEnergy * 0.5);
-            logMsg("ECHO BEACON DETONATED - AREA REVEALED");
+            // 能量<=0：不释放共振波，核心破碎
+            logMsg("CORE SHATTERED - NO ENERGY");
         }
         
         // 视觉反馈
@@ -225,8 +254,60 @@ function tryInteract() {
             // 移除物品
             state.entities.items = state.entities.items.filter(i => i !== item);
             updateUI();
+        } else if(item.type === 'core_hot') {
+            // 热核心恢复能量
+            addEnergy(CFG.coreItemValue);
+            logMsg(`CORE ABSORBED (+${CFG.coreItemValue} ENERGY)`);
+            spawnParticles(item.x, item.y, '#ff6600', 30);
+            // 移除物品
+            state.entities.items = state.entities.items.filter(i => i !== item);
+            updateUI();
         }
         return;
+    }
+}
+
+// 更新玩家抓取敌人
+function updatePlayerGrab() {
+    if (!state.p.isGrabbingEnemy) {
+        return;
+    }
+    
+    const enemy = state.p.isGrabbingEnemy;
+    
+    // 检查中断条件
+    if (state.p.isGrabbed) {
+        // 玩家被其他敌人抓取
+        state.p.isGrabbingEnemy = null;
+        enemy.state = 'alert';
+        logMsg("GRAB INTERRUPTED");
+        return;
+    }
+    
+    if (state.p.overload >= CFG.maxOverload) {
+        // 玩家过载值上升并触发stunned
+        state.p.isGrabbingEnemy = null;
+        enemy.state = 'alert';
+        logMsg("GRAB INTERRUPTED - OVERLOADED");
+        return;
+    }
+    
+    if (enemy.state !== 'grabbed_by_player') {
+        // 敌人进入其他状态
+        state.p.isGrabbingEnemy = null;
+        return;
+    }
+    
+    // 持续吸收能量
+    const drainAmount = CFG.grabEnergyDrainRateEnemy;
+    enemy.en = Math.max(0, enemy.en - drainAmount);
+    addEnergy(drainAmount);
+    
+    // 如果敌人能量归零，进入休眠状态，结束抓取
+    if (enemy.en <= 0) {
+        enemy.state = 'dormant';
+        state.p.isGrabbingEnemy = null;
+        logMsg("TARGET DRAINED - DORMANT");
     }
 }
 
@@ -257,8 +338,12 @@ function updateStruggle() {
         return;
     }
     
-    // 被抓取时持续流失能量
-    state.p.en = Math.max(0, state.p.en - CFG.grabEnergyDrainRate);
+    // 被抓取时持续流失能量，敌人吸收能量
+    const drainAmount = CFG.grabEnergyDrainRatePlayer;
+    state.p.en = Math.max(0, state.p.en - drainAmount);
+    if (state.p.grabberEnemy) {
+        state.p.grabberEnemy.en = Math.min(CFG.enemyMaxEnergy, state.p.grabberEnemy.en + drainAmount);
+    }
     
     // 每10帧生成一次青色粒子，表现能量流失
     state.p.grabParticleTimer++;
@@ -293,12 +378,16 @@ function updateReserveEnergy() {
 
 // 更新玩家状态
 function updatePlayer() {
+    // 能量自然衰减（底噪消耗）
+    state.p.en = Math.max(0, state.p.en - CFG.energyDecayRate);
+    
     updateFocus(); 
     updateStruggle();
     updateReserveEnergy();
+    updatePlayerGrab();
     
-    // 被抓取时无法移动
-    if (!state.p.isGrabbed) {
+    // 被抓取或抓取敌人时无法移动
+    if (!state.p.isGrabbed && !state.p.isGrabbingEnemy) {
         // 移动
         let dx=0, dy=0;
         if(state.keys.w) dy-=1; if(state.keys.s) dy+=1;
@@ -318,5 +407,99 @@ function updatePlayer() {
     // 冷却时间
     if(state.p.invuln > 0) state.p.invuln--;
     if(state.p.resonanceCD > 0) state.p.resonanceCD--;
+    
+    // 瞄准线raycast检测
+    updateAimLineRaycast();
+}
+
+// 更新瞄准线raycast检测
+function updateAimLineRaycast() {
+    if (!state.p.shouldShowAimLine) {
+        state.p.aimLineHit = null;
+        return;
+    }
+    
+    const maxLength = CFG.pViewDist * 2;
+    const dx = Math.cos(state.p.a);
+    const dy = Math.sin(state.p.a);
+    
+    let closestHit = null;
+    let closestDist = Infinity;
+    
+    // 检测敌人碰撞
+    for (const enemy of state.entities.enemies) {
+        const hit = rayCircleIntersect(state.p.x, state.p.y, dx, dy, enemy.x, enemy.y, enemy.r);
+        if (hit !== null && hit > 0 && hit < maxLength && hit < closestDist) {
+            closestDist = hit;
+            closestHit = {
+                type: 'enemy',
+                enemy: enemy,
+                dist: hit,
+                x: state.p.x + dx * hit,
+                y: state.p.y + dy * hit
+            };
+        }
+    }
+    
+    // 检测墙壁碰撞
+    for (const wall of state.entities.walls) {
+        const hit = rayRectIntersect(state.p.x, state.p.y, dx, dy, wall.x, wall.y, wall.w, wall.h);
+        if (hit !== null && hit > 0 && hit < maxLength && hit < closestDist) {
+            closestDist = hit;
+            closestHit = {
+                type: 'wall',
+                wall: wall,
+                dist: hit,
+                x: state.p.x + dx * hit,
+                y: state.p.y + dy * hit
+            };
+        }
+    }
+    
+    state.p.aimLineHit = closestHit;
+    
+    // 如果碰撞到敌人，触发分析显示
+    if (closestHit && closestHit.type === 'enemy') {
+        const enemy = closestHit.enemy;
+        enemy.lastPingTime = Date.now();
+        enemy.pingType = 'analyze';
+    }
+    
+    // 如果碰撞到墙壁，显示墙壁信息（通过更新wallEchoes）
+    if (closestHit && closestHit.type === 'wall') {
+        const wall = closestHit.wall;
+        // 确保wallEcho存在
+        let wallEcho = state.entities.wallEchoes.find(we => we.wall === wall);
+        if (!wallEcho) {
+            wallEcho = {
+                wall: wall,
+                life: 1.0,
+                energy: 0,
+                absorbedEnergy: 0
+            };
+            state.entities.wallEchoes.push(wallEcho);
+        }
+        // 更新显示时间
+        wallEcho.life = 1.0;
+    }
+}
+
+// 射线与圆的相交检测
+function rayCircleIntersect(rx, ry, rdx, rdy, cx, cy, cr) {
+    const toCircleX = cx - rx;
+    const toCircleY = cy - ry;
+    const dot = toCircleX * rdx + toCircleY * rdy;
+    
+    if (dot < 0) return null; // 圆在射线后方
+    
+    const closestX = rx + rdx * dot;
+    const closestY = ry + rdy * dot;
+    const distToCenter = Math.hypot(closestX - cx, closestY - cy);
+    
+    if (distToCenter > cr) return null; // 射线未击中圆
+    
+    // 计算交点距离
+    const halfChord = Math.sqrt(cr * cr - distToCenter * distToCenter);
+    return dot - halfChord; // 返回第一个交点
 }
 

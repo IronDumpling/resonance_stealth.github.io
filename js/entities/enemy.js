@@ -38,7 +38,12 @@ function spawnEnemy() {
         currentWPIndex: 0,
         uiElement: createAnalyzerUI(),
         executeHintElement: createExecuteHintUI(),
-        struggleHintElement: createStruggleHintUI()
+        struggleHintElement: createStruggleHintUI(),
+        grabHintElement: null,
+        // 能量系统
+        en: CFG.enemyMaxEnergy,     // 当前能量
+        overload: 0,                // 当前过载值
+        maxOverload: CFG.maxOverload // 过载阈值（统一为100）
     });
 }
 
@@ -71,6 +76,14 @@ function createStruggleHintUI() {
     return div;
 }
 
+function createGrabHintUI() {
+    const div = document.createElement('div');
+    div.className = 'interact-hint grab-hint';
+    div.innerHTML = '[E] GRAB';
+    uiContainer.appendChild(div);
+    return div;
+}
+
 // 敌人感知到玩家位置（统一触发入口）
 function onEnemySensesPlayer(enemy, playerX, playerY) {
     if (!enemy || enemy.state === 'stunned') return;
@@ -86,11 +99,52 @@ function updateEnemyUI(e) {
     const execHint = e.executeHintElement;
     const struggleHint = e.struggleHintElement;
     
-    // analyze UI 只在 idle, patrol, alert, searching 状态中显示
-    const canShowAnalyze = (e.state === 'idle' || e.state === 'patrol' || e.state === 'alert' || e.state === 'searching');
+    // analyze UI 在以下情况显示：
+    // 1. 波纹分析（原有逻辑）
+    // 2. 瞄准线raycast碰撞（新增）
+    const canShowAnalyze = (e.state === 'idle' || e.state === 'patrol' || e.state === 'alert' || e.state === 'searching' || e.state === 'dormant');
+    const isRaycastHit = state.p.aimLineHit && state.p.aimLineHit.type === 'enemy' && state.p.aimLineHit.enemy === e;
+    const isWaveAnalyze = Date.now() - e.lastPingTime < 2000 && e.pingType === 'analyze';
     
     // 更新 analyze UI
-    if (canShowAnalyze && Date.now() - e.lastPingTime < 2000 && e.pingType === 'analyze') {
+    if (canShowAnalyze && (isWaveAnalyze || isRaycastHit)) {
+        const screenPos = worldToScreen(e.x, e.y - 20);
+        ui.style.display = 'block'; 
+        ui.style.left = screenPos.x + 'px'; 
+        ui.style.top = screenPos.y + 'px';
+        
+        let diff = clamp((e.freq - state.freq) / 100, -1, 1);
+        const offset = 40 + (diff * 38);
+        ui.querySelector('.analyzer-pip').style.left = offset + 'px';
+        
+        const text = ui.querySelector('.analyzer-text');
+        const pip = ui.querySelector('.analyzer-pip');
+        const freqDiff = Math.abs(state.freq - e.freq);
+        
+        // 构建显示文本，包含能量和过载信息
+        let statusText = "";
+        if(freqDiff <= CFG.perfectResTol) {
+            // 完美共振：亮绿色
+            pip.style.backgroundColor = '#00ff00';
+            statusText = "<span style='color:#00ff00'>[◆ PERFECT RESONANCE]</span>";
+        } else if(freqDiff <= CFG.normalResTol) {
+            // 普通共振：浅绿色
+            pip.style.backgroundColor = '#88ff88';
+            statusText = "<span style='color:#88ff88'>[● RESONANCE]</span>";
+        } else if(diff < 0) {
+            pip.style.backgroundColor = '#0088ff';
+            statusText = "<span style='color:#0088ff'>▼ LOWER FREQ</span>"; 
+        } else {
+            pip.style.backgroundColor = '#ff4400';
+            statusText = "<span style='color:#ff4400'>▲ HIGHER FREQ</span>";
+        }
+        
+        // 添加能量和过载信息
+        const enText = `EN: ${Math.floor(e.en)}/${CFG.enemyMaxEnergy}`;
+        const overloadText = `OVERLOAD: ${Math.floor(e.overload)}/${CFG.maxOverload}`;
+        text.innerHTML = statusText + `<br><span style='color:#aaa;font-size:0.8em;'>${enText} | ${overloadText}</span>`;
+    } else if (isRaycastHit) {
+        // raycast碰撞时也显示分析UI（即使没有波纹分析）
         const screenPos = worldToScreen(e.x, e.y - 20);
         ui.style.display = 'block'; 
         ui.style.left = screenPos.x + 'px'; 
@@ -105,11 +159,9 @@ function updateEnemyUI(e) {
         const freqDiff = Math.abs(state.freq - e.freq);
         
         if(freqDiff <= CFG.perfectResTol) {
-            // 完美共振：亮绿色
             pip.style.backgroundColor = '#00ff00';
             text.innerHTML = "<span style='color:#00ff00'>[◆ PERFECT RESONANCE]</span>";
         } else if(freqDiff <= CFG.normalResTol) {
-            // 普通共振：浅绿色
             pip.style.backgroundColor = '#88ff88';
             text.innerHTML = "<span style='color:#88ff88'>[● RESONANCE]</span>";
         } else if(diff < 0) {
@@ -119,6 +171,10 @@ function updateEnemyUI(e) {
             pip.style.backgroundColor = '#ff4400';
             text.innerHTML = "<span style='color:#ff4400'>▲ HIGHER FREQ</span>";
         }
+        
+        const enText = `EN: ${Math.floor(e.en)}/${CFG.enemyMaxEnergy}`;
+        const overloadText = `OVERLOAD: ${Math.floor(e.overload)}/${CFG.maxOverload}`;
+        text.innerHTML += `<br><span style='color:#aaa;font-size:0.8em;'>${enText} | ${overloadText}</span>`;
     } else {
         ui.style.display = 'none';
     }
@@ -142,12 +198,29 @@ function updateEnemyUI(e) {
     } else {
         struggleHint.style.display = 'none';
     }
+    
+    // grab hint UI 只在未警觉状态且可抓取时显示
+    if ((e.state === 'patrol' || e.state === 'idle') && 
+        dist(e.x, e.y, state.p.x, state.p.y) < CFG.stealthGrabDistance &&
+        !state.p.isGrabbed && !state.p.isGrabbingEnemy) {
+        if (!e.grabHintElement) {
+            e.grabHintElement = createGrabHintUI();
+        }
+        const screenPos = worldToScreen(e.x, e.y - 40);
+        e.grabHintElement.style.display = 'block';
+        e.grabHintElement.style.left = screenPos.x + 'px';
+        e.grabHintElement.style.top = screenPos.y + 'px';
+    } else {
+        if (e.grabHintElement) {
+            e.grabHintElement.style.display = 'none';
+        }
+    }
 }
 
 // 更新敌人移动
 function updateEnemyMovement(e) {
-    // STUNNED、DETONATING 和 GRABBING 状态在 updateEnemies 中处理，这里直接返回
-    if (e.state === 'stunned' || e.state === 'detonating' || e.state === 'grabbing') return;
+    // STUNNED、DETONATING、GRABBING 和 DORMANT 状态在 updateEnemies 中处理，这里直接返回
+    if (e.state === 'stunned' || e.state === 'detonating' || e.state === 'grabbing' || e.state === 'dormant' || e.state === 'grabbed_by_player') return;
     
     // 检查玩家是否挣脱（如果敌人处于 grabbing 状态但玩家已挣脱）
     if (e.state === 'grabbing' && (!state.p.isGrabbed || state.p.grabberEnemy !== e)) {
@@ -162,14 +235,22 @@ function updateEnemyMovement(e) {
         e.searchTimer--;
         
         if (e.searchTimer === 30) {
-            // 主动搜索波
-            emitWave(e.x, e.y, 0, Math.PI * 2, e.freq, 'enemy', e.id);
-            // 视觉 Ping：强调"正在搜索"
-            state.entities.echoes.push({
-                x: e.x, y: e.y, r: e.r * 2,
-                type: 'enemy_search_ping',
-                life: 0.8
-            });
+            // 主动搜索波（检查能量）
+            const freqNorm = (e.freq - CFG.freqMin) / (CFG.freqMax - CFG.freqMin);
+            const focusNorm = 1; // 敌人发波为全向
+            const rawCost = 5 * freqNorm + 5 * focusNorm;
+            const energyCost = clamp(Math.round(rawCost), 0, 10);
+            
+            if (e.en >= energyCost) {
+                e.en = Math.max(0, e.en - energyCost);
+                emitWave(e.x, e.y, 0, Math.PI * 2, e.freq, 'enemy', e.id);
+                // 视觉 Ping：强调"正在搜索"
+                state.entities.echoes.push({
+                    x: e.x, y: e.y, r: e.r * 2,
+                    type: 'enemy_search_ping',
+                    life: 0.8
+                });
+            }
         }
         
         if (e.searchTimer <= 0) {
@@ -267,6 +348,19 @@ function updateEnemies() {
         if(e.resonanceCD > 0) e.resonanceCD--;
         if(e.grabCooldown > 0) e.grabCooldown--;
         
+        // 能量自然衰减（非休眠状态）
+        if (e.state !== 'dormant') {
+            e.en = Math.max(0, e.en - CFG.energyDecayRate);
+            // 能量归零时进入休眠状态
+            if (e.en <= 0 && e.state !== 'dormant') {
+                e.state = 'dormant';
+                logMsg("TARGET DORMANT");
+            }
+        }
+        
+        // 过载条自然衰减
+        e.overload = Math.max(0, e.overload - CFG.overloadDecayRate);
+        
         const dToP = dist(e.x, e.y, state.p.x, state.p.y);
         
         if(e.state === 'grabbing') {
@@ -276,7 +370,28 @@ function updateEnemies() {
                 e.state = 'alert';
                 e.grabCooldown = CFG.grabCD; // 设置抓取冷却
             }
+            // 检查过载中断条件
+            if (e.overload >= CFG.maxOverload) {
+                e.state = 'stunned';
+                e.isPerfectStun = false;
+                e.timer = CFG.stunTime / 2;
+                e.canBeDetonated = true;
+                state.p.isGrabbed = false;
+                state.p.grabberEnemy = null;
+                logMsg("GRAB INTERRUPTED - TARGET OVERLOADED");
+            }
             // 抓取状态下不移动，不更新其他逻辑
+            return;
+        } else if(e.state === 'dormant') {
+            // 休眠状态：停止AI移动、不发波、不抓取
+            // 如果能量恢复，唤醒敌人
+            if (e.en > 0) {
+                e.state = 'patrol';
+                logMsg("TARGET AWAKENED");
+            }
+            return;
+        } else if(e.state === 'grabbed_by_player') {
+            // 被玩家抓取状态：停止移动
             return;
         } else if(e.state === 'stunned') {
             e.timer--;
@@ -353,6 +468,7 @@ function updateEnemies() {
         if(e.uiElement) e.uiElement.remove();
         if(e.executeHintElement) e.executeHintElement.remove();
         if(e.struggleHintElement) e.struggleHintElement.remove();
+        if(e.grabHintElement) e.grabHintElement.remove();
     });
 }
 

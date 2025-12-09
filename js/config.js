@@ -36,13 +36,32 @@ const CFG = {
     eSpeedPatrol: 0.6,
     eSpeedChase: 1.5,
     stunTime: 600, 
-    grabCD: 120,          // 抓取冷却时间（帧数）
+    grabCD: 120,                   // 抓取冷却时间（帧数）
+    enemyMaxEnergy: 80,            // 敌人最大能量值
     
     // 抓取与挣脱
     struggleProgressMax: 100,      // 挣脱进度最大值
     struggleProgressDecay: 0.2,    // 挣脱进度每帧衰减量
     struggleProgressGain: 15,      // 每次按F增加的挣脱进度
     grabEnergyDrainRate: 0.1,      // 被抓取时每帧能量流失量
+    
+    // 能量系统
+    energyDecayRate: 0.001,         // 底噪消耗（每帧自然衰减）
+    waveAbsorbRatio: 0.3,          // 波纹穿透时生物吸收的能量比例（对应穿透损失的30%）
+    
+    // 过载系统
+    overloadDecayRate: 0.5,        // 过载条自然衰减速度（每帧）
+    overloadGainNormal: 10,         // 普通共振时过载增加量
+    overloadGainPerfect: 100,       // 完美共振时过载增加量（直接满）
+    maxOverload: 100,               // 过载最大值（玩家和敌人统一）
+    
+    // 抓取系统
+    grabEnergyDrainRateEnemy: 0.15, // 玩家抓取敌人时的能量吸收速度
+    grabEnergyDrainRatePlayer: 0.1, // 敌人抓取玩家时的能量吸收速度（已存在，确认值）
+    stealthGrabDistance: 30,        // 暗杀抓取距离
+    
+    // 核心物品
+    coreItemValue: 50,              // 核心物品恢复的能量值
     
     // 波纹能量
     baseWaveEnergy: 10000,   // 波纹固定基础能量N
