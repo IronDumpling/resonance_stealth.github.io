@@ -229,16 +229,25 @@ function drawWaves() {
         
         // 根据波纹来源决定颜色
         let color;
-        if (w.source === 'player') {
+        if (w.source === 'noise') {
+            // 底噪波纹：淡青色，低透明度，类似水面涟漪
+            // 使用固定的低透明度，让底噪波纹更明显
+            const noiseAlpha = 0.2; // 固定透明度30%，让底噪波纹可见
+            color = `rgba(100, 200, 255, ${noiseAlpha})`;
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.5; // 稍微粗一点的线条，更容易看到
+        } else if (w.source === 'player') {
             // 玩家波纹：青色，能量影响饱和度/亮度/透明度
             color = `hsla(180, ${saturation}%, ${lightness}%, ${alpha})`;
+            ctx.strokeStyle = color;
+            ctx.lineWidth = w.spread < 1 ? 5 : 3;
         } else {
             // 敌人波纹：红色，能量影响饱和度/亮度/透明度
             color = `hsla(0, ${saturation}%, ${lightness}%, ${alpha})`;
+            ctx.strokeStyle = color;
+            ctx.lineWidth = w.spread < 1 ? 5 : 3;
         }
         
-        ctx.strokeStyle = color;
-        ctx.lineWidth = w.spread < 1 ? 5 : 3;
         ctx.stroke();
     });
 }
@@ -322,6 +331,40 @@ function drawEntities() {
 
     // 绘制敌人
     state.entities.enemies.forEach(e => {
+        // 绘制敌人感知范围（调试可视化）
+        if (e.detectionRadius) {
+            ctx.save();
+            // 绘制感知范围圆形（淡色轮廓）
+            ctx.strokeStyle = 'rgba(255, 255, 0, 0.2)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(e.x, e.y, e.detectionRadius, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // 绘制敏感扇区（扇形填充）
+            if (e.detectionSectorAngle) {
+                ctx.fillStyle = 'rgba(255, 255, 0, 0.1)';
+                ctx.beginPath();
+                ctx.moveTo(e.x, e.y);
+                const startAngle = e.angle - e.detectionSectorAngle / 2;
+                const endAngle = e.angle + e.detectionSectorAngle / 2;
+                ctx.arc(e.x, e.y, e.detectionRadius, startAngle, endAngle);
+                ctx.closePath();
+                ctx.fill();
+                
+                // 绘制扇区边界线
+                ctx.strokeStyle = 'rgba(255, 255, 0, 0.4)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(e.x, e.y);
+                ctx.lineTo(e.x + Math.cos(startAngle) * e.detectionRadius, e.y + Math.sin(startAngle) * e.detectionRadius);
+                ctx.moveTo(e.x, e.y);
+                ctx.lineTo(e.x + Math.cos(endAngle) * e.detectionRadius, e.y + Math.sin(endAngle) * e.detectionRadius);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+        
         // 绘制敌人本体
         ctx.beginPath();
         ctx.arc(e.x, e.y, e.r, 0, Math.PI*2);

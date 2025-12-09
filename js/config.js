@@ -46,8 +46,17 @@ const CFG = {
     grabEnergyDrainRate: 0.1,      // 被抓取时每帧能量流失量
     
     // 能量系统
-    energyDecayRate: 0.001,         // 底噪消耗（每帧自然衰减）
+    energyDecayRate: 0.005,         // 能量自然衰减（每帧基础消耗，也是底噪的基础强度）
     waveAbsorbRatio: 0.3,          // 波纹穿透时生物吸收的能量比例（对应穿透损失的30%）
+    
+    // 底噪系统
+    noiseMoveMultiplier: 2.0,       // 移动时底噪倍数
+    noiseSprintMultiplier: 3.0,     // 奔跑时底噪倍数
+    noiseWaveCostRatio: 1.0,        // 发波时底噪与能量消耗的比例系数
+    noiseDetectionRadius: 200,      // 敌人感知范围半径（像素）
+    noiseDetectionSectorAngle: Math.PI / 2, // 敌人正面敏感扇区角度（90度）
+    noiseDetectionThreshold: 5,     // 敏感扇区内的察觉阈值
+    noiseBlindSectorThreshold: 50,  // 盲区（背面/侧面）的察觉阈值
     
     // 过载系统
     overloadDecayRate: 0.5,         // 过载条自然衰减速度（每帧）
@@ -64,10 +73,11 @@ const CFG = {
     coreItemValue: 50,              // 核心物品恢复的能量值
     
     // 波纹能量
-    baseWaveEnergy: 10000,   // 波纹固定基础能量N
-    energyThreshold: 0.1,    // 过载能量阈值比例
-    initialRadius: 5,        // 初始半径
+    baseWaveEnergy: 10000,       // 波纹固定基础能量N
+    energyThreshold: 0.1,        // 过载能量阈值比例
+    initialRadius: 5,            // 初始半径
     resonanceCD: 120,
+    minEnergyPerPoint: 0.00001, // 波纹最小能量密度阈值，低于此值波纹消失
     
     // 波纹信息显示等级阈值
     infoLevelClear: 500,      // 高于此值：清晰轮廓（低于则为模糊轮廓）

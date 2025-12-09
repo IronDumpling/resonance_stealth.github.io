@@ -36,6 +36,9 @@ const state = {
         isGrabbingEnemy: null,     // 当前抓取的敌人引用
         grabHintElement: null,     // Grab Hint UI元素引用
         aimLineHit: null,          // 瞄准线raycast碰撞结果
+        currentNoiseLevel: 0,      // 当前底噪强度（用于视觉化）
+        isSprinting: false,        // 是否在奔跑
+        noiseWaveFrameCounter: 0   // 底噪波纹生成帧计数器
     },
     keys: { w:0, a:0, s:0, d:0, space:0, f:0, r:0, e:0 },
     mouse: { x:0, y:0 },
@@ -149,6 +152,7 @@ function init() {
     state.p.overload = 0;
     state.p.isGrabbingEnemy = null;
     state.p.aimLineHit = null;
+    state.p.noiseWaveFrameCounter = 0;
     
     state.entities.walls = [];
     state.entities.items = [];

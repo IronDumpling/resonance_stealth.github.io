@@ -43,7 +43,10 @@ function spawnEnemy() {
         // 能量系统
         en: CFG.enemyMaxEnergy,     // 当前能量
         overload: 0,                // 当前过载值
-        maxOverload: CFG.maxOverload // 过载阈值（统一为100）
+        maxOverload: CFG.maxOverload, // 过载阈值（统一为100）
+        // 感知系统
+        detectionRadius: CFG.noiseDetectionRadius,      // 感知范围半径
+        detectionSectorAngle: CFG.noiseDetectionSectorAngle // 敏感扇区角度
     });
 }
 
@@ -91,6 +94,52 @@ function onEnemySensesPlayer(enemy, playerX, playerY) {
     enemy.targetX = playerX;
     enemy.targetY = playerY;
     enemy.searchTimer = 0;
+}
+
+// 检查底噪波纹检测
+function checkNoiseDetection(noiseWave, enemy) {
+    // 1. 检查敌人是否在可感知状态
+    if (enemy.state === 'stunned' || enemy.state === 'dormant' || enemy.state === 'detonating') {
+        return false;
+    }
+    
+    // 2. 计算底噪波纹到敌人的距离
+    const distToEnemy = dist(noiseWave.x, noiseWave.y, enemy.x, enemy.y);
+    
+    // 3. 检查是否在感知范围内
+    if (distToEnemy > enemy.detectionRadius) {
+        return false;
+    }
+    
+    // 4. 计算角度
+    // 敌人到波纹源的角度（注意：底噪波纹的起点是玩家位置，即noiseWave.x, noiseWave.y）
+    const angleToNoiseSource = Math.atan2(noiseWave.y - enemy.y, noiseWave.x - enemy.x);
+    // 敌人朝向角度
+    const enemyAngle = enemy.angle;
+    // 角度差（归一化到 0-π）
+    let angleDiff = Math.abs(angleToNoiseSource - enemyAngle);
+    while (angleDiff > Math.PI) {
+        angleDiff = Math.abs(angleDiff - Math.PI * 2);
+    }
+    
+    // 5. 判断是否在敏感扇区
+    const inSensitiveSector = angleDiff < enemy.detectionSectorAngle / 2;
+    
+    // 6. 获取底噪强度（使用energyPerPoint）
+    const noiseIntensity = noiseWave.energyPerPoint;
+    
+    // 7. 根据扇区选择阈值
+    const threshold = inSensitiveSector ? CFG.noiseDetectionThreshold : CFG.noiseBlindSectorThreshold;
+    
+    // 8. 如果底噪强度达到阈值，触发警觉
+    if (noiseIntensity >= threshold) {
+        // 使用波纹起点位置（玩家位置）
+        onEnemySensesPlayer(enemy, noiseWave.x, noiseWave.y);
+        logMsg("ENEMY DETECTED NOISE");
+        return true;
+    }
+    
+    return false;
 }
 
 // 更新敌人UI
