@@ -293,39 +293,8 @@ function tryInteract() {
         return;
     }
 
-    // 2. 尝试拾取
-    const items = state.entities.items.filter(
-        i => dist(i.x, i.y, state.p.x, state.p.y) < 40 && 
-        i.visibleTimer > 0
-    );
-    
-    if(items.length > 0) {
-        const item = items[0];
-        if(item.type === 'energy') {
-            // 能量瓶直接补充到备用能量
-            addReserveEnergy(CFG.energyFlaskVal);
-            logMsg(`RESERVE ENERGY RESTORED (+${CFG.energyFlaskVal})`);
-            spawnParticles(item.x, item.y, '#00ff00', 20);
-            // 移除物品
-            state.entities.items = state.entities.items.filter(i => i !== item);
-            updateUI();
-        } else if(item.type === 'core_hot') {
-            // 热核心恢复能量
-            addEnergy(CFG.coreHotItemValue);
-            logMsg(`CORE ABSORBED (+${CFG.coreHotItemValue} ENERGY)`);
-            spawnParticles(item.x, item.y, '#ff6600', 30);
-            // 移除物品
-            state.entities.items = state.entities.items.filter(i => i !== item);
-            updateUI();
-        } else if(item.type === 'core_cold') {
-            // 冷核心：一用即碎，恢复能量为0
-            addEnergy(CFG.coreColdItemValue);
-            logMsg(`COLD CORE ABSORBED (FRAGILE)`);
-            spawnParticles(item.x, item.y, '#8888ff', 20);
-            // 移除物品
-            state.entities.items = state.entities.items.filter(i => i !== item);
-            updateUI();
-        }
+    // 2. 尝试拾取物品（使用新的物品系统）
+    if(tryPickupItem()) {
         return;
     }
 }
