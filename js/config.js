@@ -57,7 +57,7 @@ const CFG = {
     // 能量感知系统
     energyDetectionRadius: 200,                  // 能量感知范围半径（像素）
     energyDetectionSectorAngle: Math.PI / 2,     // 敏感扇区角度（90度）
-    energyRemoteDetectionThresholdSensitive: 5,  // 远程能量感知阈值（敏感区）
+    energyRemoteDetectionThresholdSensitive: 10,  // 远程能量感知阈值（敏感区）
     energyRemoteDetectionThresholdBlind: 200,     // 远程能量感知阈值（盲区）
     energyAbsorbDetectionThreshold: 10,          // 吸收能量感知阈值（生物波穿透时）
     
