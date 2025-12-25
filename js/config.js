@@ -98,6 +98,7 @@ const CFG = {
     // 休眠敌人能量吸收
     dormantAbsorptionRange: 50,     // 休眠敌人吸收范围
     dormantAbsorptionRate: 0.1,     // 每帧吸收速率
+    dormantNaturalRegenRate: 0.02,  // 每帧自然恢复速率（比吸收慢5倍）
     dormantWakeupThreshold: 0.5,    // 恢复活动的能量阈值（总能量的一半）
     
     // 波纹能量

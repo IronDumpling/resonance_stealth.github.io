@@ -1085,32 +1085,8 @@ function handleWaveEnemyInteraction(w, oldR, waveIndex) {
                         isPerfect: isPerfectResonance
                     });
                     
-                    // 层次2：受迫共振波（铺板现象，只要共振就发波）
-                    // 条件：冷却完毕、有足够能量、不在硬直中、不在stunned/detonating状态
-                    if (enemy.resonanceCD <= 0 && 
-                        (!enemy.overloadedStunTimer || enemy.overloadedStunTimer <= 0) &&
-                        enemy.state !== 'stunned' && 
-                        enemy.state !== 'detonating') {
-                        
-                        // 计算能量消耗
-                        const freqNorm = (enemy.freq - CFG.freqMin) / (CFG.freqMax - CFG.freqMin);
-                        const focusNorm = 1; // 敌人发波为全向
-                        const rawCost = 5 * freqNorm + 5 * focusNorm;
-                        const energyCost = clamp(Math.round(rawCost), 0, 10);
-                        
-                        if (enemy.en >= energyCost) {
-                            enemy.en = Math.max(0, enemy.en - energyCost);
-                            emitWave(enemy.x, enemy.y, 0, Math.PI*2, enemy.freq, 'enemy', enemy.id);
-                            enemy.resonanceCD = CFG.resonanceCD;
-                            
-                            // 敌人会警觉并追踪波纹来源位置
-                            if (enemy.state === 'idle' || enemy.state === 'alert' || enemy.state === 'patrol' || enemy.state === 'searching') {
-                                onEnemySensesPlayer(enemy, w.x, w.y);
-                            }
-                        }
-                    }
-                    
-                    // 层次3：过载检查（检查是否过载满，满了则进入stunned）
+                    // 层次2：过载检查（先检查是否过载满，满了则进入stunned）
+                    // 必须在发波前检查，避免 stunned 状态下还发波
                     if (enemy.overload >= CFG.maxOverload) {
                         if (enemy.isDormant) {
                             // 休眠敌人过载后仍保持休眠，但可以被处决
@@ -1131,6 +1107,31 @@ function handleWaveEnemyInteraction(w, oldR, waveIndex) {
                             logMsg("TARGET CRITICAL - READY TO DETONATE");
                         } else {
                             logMsg("TARGET STUNNED");
+                        }
+                    }
+                    
+                    // 层次3：受迫共振波（铺板现象，只要共振就发波）
+                    // 条件：冷却完毕、有足够能量、不在stunned/detonating状态
+                    // 注意：硬直期间也可以发波（物理现象，与敌人行动能力无关）
+                    if (enemy.resonanceCD <= 0 && 
+                        enemy.state !== 'stunned' && 
+                        enemy.state !== 'detonating') {
+                        
+                        // 计算能量消耗
+                        const freqNorm = (enemy.freq - CFG.freqMin) / (CFG.freqMax - CFG.freqMin);
+                        const focusNorm = 1; // 敌人发波为全向
+                        const rawCost = 5 * freqNorm + 5 * focusNorm;
+                        const energyCost = clamp(Math.round(rawCost), 0, 10);
+                        
+                        if (enemy.en >= energyCost) {
+                            enemy.en = Math.max(0, enemy.en - energyCost);
+                            emitWave(enemy.x, enemy.y, 0, Math.PI*2, enemy.freq, 'enemy', enemy.id);
+                            enemy.resonanceCD = CFG.resonanceCD;
+                            
+                            // 敌人会警觉并追踪波纹来源位置（硬直状态下不会移动，但仍会记录玩家位置）
+                            if (enemy.state === 'idle' || enemy.state === 'alert' || enemy.state === 'patrol' || enemy.state === 'searching') {
+                                onEnemySensesPlayer(enemy, w.x, w.y);
+                            }
                         }
                     }
                 }

@@ -307,10 +307,25 @@ function updateEnemyUI(e) {
             statusText = "<span style='color:#ff4400'>▲ HIGHER FREQ</span>";
         }
         
-        // 添加能量和过载信息
+        // 添加能量和过载信息（带颜色编码）
         const enText = `EN: ${Math.floor(e.en)}/${CFG.enemyMaxEnergy}`;
-        const overloadText = `OVERLOAD: ${Math.floor(e.overload)}/${CFG.maxOverload}`;
-        text.innerHTML = statusText + `<br><span style='color:#aaa;font-size:0.8em;'>${enText} | ${overloadText}</span>`;
+        
+        // 过载值颜色编码：根据危险程度变化
+        const overloadPercent = e.overload / CFG.maxOverload;
+        let overloadColor = '#aaa';  // 默认灰色
+        if (overloadPercent >= 1.0) {
+            overloadColor = '#ff0000';  // 满过载：红色
+        } else if (overloadPercent >= 0.66) {
+            overloadColor = '#ff8800';  // 高过载：橙色
+        } else if (overloadPercent >= 0.33) {
+            overloadColor = '#ffff00';  // 中过载：黄色
+        }
+        
+        const overloadValue = Math.floor(e.overload);
+        const overloadBar = '█'.repeat(Math.floor(overloadPercent * 5)) + '░'.repeat(5 - Math.floor(overloadPercent * 5));
+        const overloadText = `<span style='color:${overloadColor}'>OL: ${overloadValue}/${CFG.maxOverload} [${overloadBar}]</span>`;
+        
+        text.innerHTML = statusText + `<br><span style='font-size:0.8em;'>${enText}</span><br><span style='font-size:0.8em;'>${overloadText}</span>`;
     } else {
         // 不碰撞时立刻隐藏UI
         ui.style.display = 'none';
@@ -599,6 +614,10 @@ function updateDormantEnemyAbsorption(enemy) {
     const absorptionRate = CFG.dormantAbsorptionRate;
     
     let absorbedFromPlayer = false;
+    
+    // 0. 自然恢复（非常缓慢，比吸收慢得多）
+    const naturalRegen = CFG.dormantNaturalRegenRate;
+    enemy.en = Math.min(CFG.enemyMaxEnergy, enemy.en + naturalRegen);
     
     // 1. 吸收玩家能量
     const distToPlayer = dist(enemy.x, enemy.y, state.p.x, state.p.y);
