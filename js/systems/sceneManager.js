@@ -467,60 +467,54 @@ class RadioScene extends Scene {
     
     enter(data) {
         super.enter(data);
-        console.log('RadioScene entering...');
         
         // 初始化无线电系统（如果还没初始化）
         if (!this.radio && typeof initRadioSystem === 'function') {
-            console.log('Initializing radio system...');
             this.radio = initRadioSystem();
             radioSystem = this.radio; // 设置全局引用
-            console.log('Radio system initialized:', this.radio);
         } else if (radioSystem) {
-            console.log('Using existing radio system');
             this.radio = radioSystem;
-        } else {
-            console.error('Failed to initialize radio system!');
         }
         
-        // 初始化无线电UI
+        // 初始化无线电UI（DOM界面）
         if (!this.radioUI && typeof initRadioUI === 'function' && this.radio) {
-            console.log('Initializing radio UI...');
             this.radioUI = initRadioUI(this.radio);
             radioUI = this.radioUI; // 设置全局引用
+            // 初始化DOM
+            this.radioUI.init();
         } else if (radioUI) {
-            console.log('Using existing radio UI');
             this.radioUI = radioUI;
-        }
-        
-        // 绑定canvas
-        if (this.radioUI && typeof canvas !== 'undefined') {
-            this.radioUI.init(canvas);
-            console.log('Radio UI bound to canvas');
+            // 显示现有DOM
+            const container = document.getElementById('radio-interface');
+            if (container) {
+                container.style.display = 'block';
+            }
         }
         
         // 设置输入上下文
         if (typeof inputManager !== 'undefined') {
-            console.log('Setting input context to RADIO');
             inputManager.setContext(INPUT_CONTEXTS.RADIO);
             
-            // 注册滚轮事件监听
+            // 注册滚轮事件监听（用于调频）
             this.wheelHandler = (event) => {
-                console.log('RadioScene wheel handler called', event);
                 if (this.radio) {
                     if (event.originalEvent.shiftKey) {
                         // 精调
-                        console.log('Fine tuning');
                         this.radio.tuneFine(event.delta > 0 ? -1 : 1);
+                        if (this.radioUI) {
+                            this.radioUI.knobRotations.fine += (event.delta > 0 ? -1 : 1) * 15;
+                            this.radioUI.updateKnobRotation('knob-fine', this.radioUI.knobRotations.fine);
+                        }
                     } else {
                         // 粗调
-                        console.log('Coarse tuning');
                         this.radio.tuneCoarse(event.delta > 0 ? -1 : 1);
+                        if (this.radioUI) {
+                            this.radioUI.knobRotations.coarse += (event.delta > 0 ? -1 : 1) * 30;
+                            this.radioUI.updateKnobRotation('knob-coarse', this.radioUI.knobRotations.coarse);
+                        }
                     }
-                } else {
-                    console.warn('Radio system not initialized');
                 }
             };
-            console.log('Registering wheel handler for RADIO context');
             inputManager.on('onWheel', INPUT_CONTEXTS.RADIO, this.wheelHandler);
         }
         
@@ -535,6 +529,18 @@ class RadioScene extends Scene {
             inputManager.off('onWheel', INPUT_CONTEXTS.RADIO, this.wheelHandler);
         }
         
+        // 隐藏无线电UI
+        const container = document.getElementById('radio-interface');
+        if (container) {
+            container.style.display = 'none';
+        }
+        
+        // 隐藏摩斯码对照表
+        const morsePaper = document.getElementById('morse-paper');
+        if (morsePaper) {
+            morsePaper.style.display = 'none';
+        }
+        
         // 保存无线电状态（保持全局实例）
     }
     
@@ -542,23 +548,17 @@ class RadioScene extends Scene {
         if (this.radio) {
             this.radio.update(deltaTime);
         }
+        if (this.radioUI) {
+            this.radioUI.update(deltaTime);
+        }
     }
     
     render(ctx, canvas) {
-        if (this.radioUI) {
-            this.radioUI.render(0.016); // 假设16ms帧时间
-        } else {
-            // 后备渲染（如果UI未初始化）
-            ctx.fillStyle = '#001a00';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            ctx.fillStyle = '#00ff00';
-            ctx.font = '20px "Courier New"';
-            ctx.textAlign = 'center';
-            ctx.fillText('RADIO TRANSCEIVER', canvas.width / 2, canvas.height / 2 - 40);
-            ctx.font = '16px "Courier New"';
-            ctx.fillText('Loading...', canvas.width / 2, canvas.height / 2);
-        }
+        // 清空canvas（无线电使用DOM渲染）
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // 无线电UI通过DOM渲染，不需要canvas
     }
     
     handleInput(event) {
@@ -572,29 +572,43 @@ class RadioScene extends Scene {
             return true;
         }
         
-        // 天线旋转
+        // 天线旋转（左右方向键）
         if (key === 'arrowleft') {
             this.radio.rotateAntenna(-5);
+            if (this.radioUI) {
+                this.radioUI.knobRotations.antenna -= 10;
+                this.radioUI.updateKnobRotation('knob-ant', this.radioUI.knobRotations.antenna);
+            }
             return true;
         }
         if (key === 'arrowright') {
             this.radio.rotateAntenna(5);
+            if (this.radioUI) {
+                this.radioUI.knobRotations.antenna += 10;
+                this.radioUI.updateKnobRotation('knob-ant', this.radioUI.knobRotations.antenna);
+            }
             return true;
         }
         
         // 操作按钮
         if (key === 'd') {
             this.radio.recordDirection();
+            if (this.radioUI) {
+                this.radioUI.flashButton('btn-direction');
+            }
             return true;
         }
         if (key === 'p') {
             this.radio.sendPing();
+            if (this.radioUI) {
+                this.radioUI.flashButton('btn-ping');
+            }
             return true;
         }
         if (key === 'm') {
             const marker = this.radio.markSignalOnMap();
-            if (marker) {
-                console.log('Signal marked on map:', marker);
+            if (marker && this.radioUI) {
+                this.radioUI.flashButton('btn-mark');
             }
             return true;
         }

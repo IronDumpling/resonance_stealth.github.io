@@ -156,7 +156,6 @@ class InputManager {
         }
         
         this.callbacks[eventType].get(context).push(callback);
-        console.log(`Registered ${eventType} callback for context: ${context}`);
     }
     
     // 移除回调函数
@@ -312,7 +311,6 @@ class InputManager {
             context: this.currentContext
         };
         
-        console.log(`Wheel event in context: ${this.currentContext}, delta: ${event.deltaY}`);
         this.trigger('onWheel', this.currentContext, enhancedEvent);
         
         // 在特定上下文中阻止默认滚动

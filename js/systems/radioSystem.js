@@ -426,7 +426,7 @@ class RadioSystem {
         // 宇航员信号（主线剧情）
         this.addSignal({
             type: SIGNAL_TYPES.ASTRONAUT,
-            frequency: 432.1,
+            frequency: 155.0,  // 修改为可调范围内的频率
             direction: 45,
             distance: 5.2,
             message: 'QUANTUM LINK ESTABLISHED',
@@ -448,6 +448,7 @@ let radioSystem = null;
 function initRadioSystem() {
     radioSystem = new RadioSystem();
     radioSystem.initStorySignals();
+    radioSystem.updateSignalStrengths(); // 初始化信号强度
     console.log('Radio System ready');
     return radioSystem;
 }
