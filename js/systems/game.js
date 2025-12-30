@@ -43,7 +43,6 @@ const state = {
         isCharging: false,
         chargeStartTime: 0,       // 开始蓄力的时间戳（秒）
         en: CFG.maxEnergy, 
-        reserveEn: 0, 
         invuln: 0,
         resonanceCD: 0, 
         grabParticleTimer: 0,
