@@ -10,8 +10,20 @@ function initGlobals() {
     uiContainer = document.getElementById('world-ui-container');
     edgeGlow = document.getElementById('edge-glow');
     
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    // Get monitor screen container for sizing
+    const monitorScreen = document.getElementById('monitor-screen');
+    
+    if (monitorScreen) {
+        // Size canvas to fit monitor (60% of screen)
+        canvas.width = monitorScreen.clientWidth;
+        canvas.height = monitorScreen.clientHeight;
+    } else {
+        // Fallback to full screen
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    
+    console.log(`Canvas sized: ${canvas.width}x${canvas.height}`);
 }
 
 // --- 游戏状态 ---
@@ -114,11 +126,6 @@ function generateInstructions() {
     
     return instructions;
 }
-
-// 物品生成函数已移至 item.js
-// spawnItem(type, x, y)
-// spawnCoreAtEnemy(enemy, coreType)
-// spawnCoreAtPosition(x, y, coreType)
 
 function init() {
     // 初始化玩家位置
@@ -274,7 +281,6 @@ function updateParticlesAndEchoes() {
 // 主更新函数
 function update() {
     updatePlayer();
-    checkPlayerDeath(); // 检查能量归零死亡
     updateCamera();
     updateItemsVisibility();
 
@@ -341,7 +347,7 @@ function initInputHandlers() {
 }
 
 // ========================================
-// 新架构集成 (Phase 1)
+// 新架构集成
 // ========================================
 
 // 主循环 - 现在由场景管理器驱动

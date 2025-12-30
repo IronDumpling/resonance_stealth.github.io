@@ -54,7 +54,8 @@ class InputManager {
             '1': 'select_radio',
             '2': 'select_robot',
             'p': 'power_off',
-            'escape': 'back'
+            'escape': 'back',
+            'tab': 'toggle_mode'
         });
         
         // 机器人控制上下文(保留现有键位)
@@ -67,7 +68,9 @@ class InputManager {
             'e': 'interact',
             'r': 'use_reserve',
             'f': 'struggle',
-            'escape': 'menu'
+            'escape': 'menu',
+            'tab': 'toggle_mode',
+            'm': 'toggle_mode'  // Alternative key
         });
         
         // 无线电上下文
@@ -80,7 +83,8 @@ class InputManager {
             'd': 'decode',
             't': 'transmit',
             'm': 'mark_location',
-            'escape': 'menu'
+            'escape': 'menu',
+            'tab': 'toggle_mode'
         });
         
         // 组装上下文
@@ -89,7 +93,8 @@ class InputManager {
             '2': 'select_core_mimic',
             '3': 'select_core_heavy',
             'enter': 'deploy',
-            'escape': 'menu'
+            'escape': 'menu',
+            'tab': 'toggle_mode'
         });
     }
     
@@ -214,6 +219,13 @@ class InputManager {
         
         this.activeKeys.add(key);
         
+        // Global hotkeys (work in any context)
+        if (key === 'tab' && sceneManager) {
+            event.preventDefault();
+            this.handleModeToggle();
+            return;
+        }
+        
         // 获取对应的动作
         const action = this.getAction(key);
         
@@ -231,6 +243,24 @@ class InputManager {
         // 如果有对应的动作，阻止默认行为(可选)
         if (action && this.shouldPreventDefault(key)) {
             event.preventDefault();
+        }
+    }
+    
+    // Handle mode toggle (Tab key)
+    handleModeToggle() {
+        if (!sceneManager) return;
+        
+        const currentMode = sceneManager.displayMode;
+        
+        // Toggle between radio and robot display modes
+        if (currentMode === DISPLAY_MODES.RADIO_DISPLAY) {
+            sceneManager.switchDisplayMode(DISPLAY_MODES.ROBOT_DISPLAY);
+            sceneManager.switchScene(SCENES.ROBOT, 'instant');
+            console.log('Switched to ROBOT mode');
+        } else if (currentMode === DISPLAY_MODES.ROBOT_DISPLAY) {
+            sceneManager.switchDisplayMode(DISPLAY_MODES.RADIO_DISPLAY);
+            sceneManager.switchScene(SCENES.RADIO, 'instant');
+            console.log('Switched to RADIO mode');
         }
     }
     

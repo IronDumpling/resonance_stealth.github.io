@@ -8,6 +8,10 @@ class RadioUI {
         this.radio = radioSystem;
         this.container = null;
         
+        // UI状态
+        this.isActive = false;  // 是否可交互
+        this.isVisible = true;  // 是否可见
+        
         // 动画状态
         this.blinkTimer = 0;
         this.meterNeedleAngle = -45; // 信号表指针角度
@@ -25,31 +29,57 @@ class RadioUI {
     }
     
     /**
-     * 初始化DOM界面
+     * 初始化DOM界面 - 嵌入到左侧面板
      */
     init(parentElement) {
+        // 获取左侧无线电收发器容器
+        const radioTransceiver = parentElement || document.getElementById('radio-transceiver');
+        
+        if (!radioTransceiver) {
+            console.error('Radio transceiver container not found!');
+            return;
+        }
+        
         // 创建主容器
         this.container = document.createElement('div');
         this.container.id = 'radio-interface';
         this.container.innerHTML = this.generateHTML();
         
-        // 如果提供了父元素，添加到父元素；否则添加到 body
-        if (parentElement) {
-            parentElement.appendChild(this.container);
-        } else {
-            document.body.appendChild(this.container);
-        }
+        // 添加到左侧面板
+        radioTransceiver.appendChild(this.container);
         
         // 等待DOM渲染完成后初始化
         setTimeout(() => {
             // 绑定事件
             this.bindEvents();
             
-            // 初始化瀑布图 canvas
+            // 初始化所有 canvas（瀑布图、指南针、信号表）
             this.initWaterfallCanvas();
             
-            console.log('Radio UI DOM created and initialized');
+            console.log('Radio UI DOM created and initialized in left panel');
         }, 0);
+    }
+    
+    /**
+     * 激活UI（允许交互）
+     */
+    activate() {
+        this.isActive = true;
+        if (this.container) {
+            this.container.classList.remove('disabled');
+        }
+        console.log('Radio UI activated');
+    }
+    
+    /**
+     * 停用UI（禁止交互）
+     */
+    deactivate() {
+        this.isActive = false;
+        if (this.container) {
+            this.container.classList.add('disabled');
+        }
+        console.log('Radio UI deactivated');
     }
     
     /**
@@ -168,18 +198,6 @@ class RadioUI {
                     <div class="paper-tape" id="paper-tape">
                         <div class="tape-content" id="tape-content"></div>
                     </div>
-                    <div class="tape-hint">Click message to view Morse code reference</div>
-                </div>
-            </div>
-            
-            <!-- 摩斯码对照表（纸张样式） -->
-            <div class="morse-reference-paper" id="morse-paper" style="display: none;">
-                <div class="paper-header">
-                    <h3>INTERNATIONAL MORSE CODE</h3>
-                    <button class="paper-close" id="close-morse">✕</button>
-                </div>
-                <div class="paper-content">
-                    ${this.generateMorseTable()}
                 </div>
             </div>
         `;
@@ -225,6 +243,7 @@ class RadioUI {
         // 旋钮按钮
         document.querySelectorAll('.knob-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
+                if (!this.isActive) return;  // 未激活时不响应
                 const knob = e.target.dataset.knob;
                 const dir = parseInt(e.target.dataset.dir);
                 this.handleKnobClick(knob, dir);
@@ -237,16 +256,19 @@ class RadioUI {
         
         // 操作按钮
         document.getElementById('btn-direction')?.addEventListener('click', () => {
+            if (!this.isActive) return;  // 未激活时不响应
             this.radio.recordDirection();
             this.flashButton('btn-direction');
         });
         
         document.getElementById('btn-ping')?.addEventListener('click', () => {
+            if (!this.isActive) return;  // 未激活时不响应
             this.radio.sendPing();
             this.flashButton('btn-ping');
         });
         
         document.getElementById('btn-mark')?.addEventListener('click', () => {
+            if (!this.isActive) return;  // 未激活时不响应
             this.radio.markSignalOnMap();
             this.flashButton('btn-mark');
         });
@@ -275,8 +297,8 @@ class RadioUI {
             this.knobRotations.fine += dir * 15;
             this.updateKnobRotation('knob-fine', this.knobRotations.fine);
         } else if (knob === 'antenna') {
-            this.radio.rotateAntenna(dir * 5);
-            this.knobRotations.antenna += dir * 10;
+            this.radio.rotateAntenna(dir * 1); // 从5度改为1度，更精细调节
+            this.knobRotations.antenna += dir * 2; // 旋钮视觉旋转也相应减少
             this.updateKnobRotation('knob-ant', this.knobRotations.antenna);
         }
     }
@@ -364,27 +386,29 @@ class RadioUI {
      */
     addTapeMessage(message, morseCode) {
         const tapeContent = document.getElementById('tape-content');
-        if (!tapeContent) return;
+        const paperTape = document.getElementById('paper-tape');
+        if (!tapeContent || !paperTape) return;
         
         const messageDiv = document.createElement('div');
         messageDiv.className = 'tape-message';
         messageDiv.innerHTML = `
             <div class="tape-morse">${morseCode}</div>
-            <div class="tape-text">${message}</div>
         `;
         
-        // 打印动画
-        messageDiv.style.opacity = '0';
+        // 添加新消息
         tapeContent.appendChild(messageDiv);
         
-        setTimeout(() => {
-            messageDiv.style.opacity = '1';
-        }, 50);
+        // 计算新的高度并触发伸长动画
+        const newHeight = Math.min(tapeContent.scrollHeight, 300);
+        paperTape.style.minHeight = `${newHeight}px`;
         
-        // 自动滚动
+        // 自动滚动到底部
         setTimeout(() => {
-            tapeContent.scrollTop = tapeContent.scrollHeight;
+            paperTape.scrollTop = paperTape.scrollHeight;
         }, 100);
+        
+        // 添加打印声音效果提示（可选）
+        console.log('📠 New morse code printed on tape');
     }
     
     /**
@@ -409,8 +433,12 @@ class RadioUI {
         const signal = this.radio.getStrongestSignal();
         this.updateSignalInfo(signal);
         
-        // 渲染canvas
-        this.renderWaterfall();
+        // 只在激活状态下渲染瀑布图
+        if (this.isActive) {
+            this.renderWaterfall();
+        }
+        
+        // 始终渲染指南针和信号表
         this.renderCompass();
         this.renderMeter(signal);
         
@@ -426,16 +454,48 @@ class RadioUI {
         const freqEl = document.getElementById('signal-freq');
         
         if (signal && signal.receivedStrength > 10) {
-            if (callsignEl) callsignEl.textContent = signal.callsign;
-            if (freqEl) freqEl.textContent = `${signal.frequency.toFixed(1)} MHz`;
+            // 获取根据信号强度降级的信息
+            const degradedInfo = signal.getDegradedMessage(signal.receivedStrength);
             
-            // 如果是新信号或信号内容变化，添加到纸带
-            if (signal.message && !signal._tapeAdded) {
-                this.addTapeMessage(signal.message, signal.morseWaveform);
-                signal._tapeAdded = true;
+            if (callsignEl) {
+                callsignEl.textContent = degradedInfo.callsign;
+                // 根据信号质量设置颜色
+                if (degradedInfo.quality === 'clear') {
+                    callsignEl.style.color = '#00ff00';
+                } else if (degradedInfo.quality === 'noisy') {
+                    callsignEl.style.color = '#ffff00';
+                } else if (degradedInfo.quality === 'poor') {
+                    callsignEl.style.color = '#ff8800';
+                } else {
+                    callsignEl.style.color = '#ff0000';
+                }
+            }
+            
+            if (freqEl) {
+                freqEl.textContent = `${signal.frequency.toFixed(1)} MHz`;
+            }
+            
+            // 根据信号强度决定是否添加到纸带
+            const strengthKey = `_tape_${Math.floor(signal.receivedStrength / 10)}`;
+            if (signal.message && !signal[strengthKey]) {
+                this.addTapeMessage(degradedInfo.message, degradedInfo.morseCode);
+                signal[strengthKey] = true;
+                
+                // 显示信号质量提示
+                if (degradedInfo.quality !== 'clear') {
+                    const qualityMsg = {
+                        'noisy': 'SIGNAL NOISY - ADJUST TUNING',
+                        'poor': 'SIGNAL POOR - ADJUST FREQUENCY & ANTENNA',
+                        'weak': 'SIGNAL TOO WEAK'
+                    };
+                    logMsg(qualityMsg[degradedInfo.quality] || '');
+                }
             }
         } else {
-            if (callsignEl) callsignEl.textContent = '--';
+            if (callsignEl) {
+                callsignEl.textContent = '--';
+                callsignEl.style.color = '#00ff00';
+            }
             if (freqEl) freqEl.textContent = '-- MHz';
         }
     }

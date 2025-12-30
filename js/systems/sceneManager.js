@@ -10,6 +10,22 @@ const SCENES = {
     ASSEMBLY: 'assembly'    // 机器人组装界面
 };
 
+// 显示器显示模式 (Monitor Display Modes)
+const DISPLAY_MODES = {
+    OFF: 'off',                     // Monitor off (boot sequence not started)
+    BOOTING: 'booting',             // Boot animation in progress
+    MENU: 'menu',                   // Mode selection menu
+    RADIO_DISPLAY: 'radio_display', // Radio mode (map + decode interface)
+    ROBOT_DISPLAY: 'robot_display', // Robot control mode (game view)
+    ASSEMBLY_DISPLAY: 'assembly_display' // Assembly/navigation interface
+};
+
+// 无线电系统状态 (Radio System State)
+const RADIO_STATE = {
+    INACTIVE: 'inactive',   // Radio not powered on
+    ACTIVE: 'active'        // Radio system running
+};
+
 // 场景管理器类
 class SceneManager {
     constructor() {
@@ -29,6 +45,11 @@ class SceneManager {
         // 过渡回调
         this.onTransitionStart = null;
         this.onTransitionEnd = null;
+        
+        // 新架构：双系统状态管理
+        this.displayMode = DISPLAY_MODES.OFF;      // Monitor display mode
+        this.radioState = RADIO_STATE.INACTIVE;    // Radio system state
+        this.previousDisplayMode = null;
     }
     
     // 注册场景
@@ -78,6 +99,51 @@ class SceneManager {
         return true;
     }
     
+    // 切换显示模式 (新方法)
+    switchDisplayMode(mode, data = {}) {
+        if (!Object.values(DISPLAY_MODES).includes(mode)) {
+            console.error(`Invalid display mode: ${mode}`);
+            return false;
+        }
+        
+        this.previousDisplayMode = this.displayMode;
+        this.displayMode = mode;
+        
+        console.log(`Display mode switched: ${this.previousDisplayMode} -> ${this.displayMode}`);
+        
+        // Update UI visibility
+        const gameCanvas = document.getElementById('gameCanvas');
+        const radioModeDisplay = document.getElementById('radio-mode-display');
+        
+        if (mode === DISPLAY_MODES.ROBOT_DISPLAY) {
+            if (gameCanvas) gameCanvas.style.display = 'block';
+            if (radioModeDisplay) radioModeDisplay.style.display = 'none';
+        } else if (mode === DISPLAY_MODES.RADIO_DISPLAY) {
+            if (gameCanvas) gameCanvas.style.display = 'none';
+            if (radioModeDisplay) {
+                radioModeDisplay.style.display = 'grid';
+                radioModeDisplay.classList.add('active');
+            }
+        } else if (mode === DISPLAY_MODES.MENU || mode === DISPLAY_MODES.BOOTING) {
+            if (gameCanvas) gameCanvas.style.display = 'none';
+            if (radioModeDisplay) radioModeDisplay.style.display = 'none';
+        }
+        
+        return true;
+    }
+    
+    // 激活/停用无线电系统
+    setRadioState(state) {
+        if (!Object.values(RADIO_STATE).includes(state)) {
+            console.error(`Invalid radio state: ${state}`);
+            return false;
+        }
+        
+        this.radioState = state;
+        console.log(`Radio state changed to: ${state}`);
+        return true;
+    }
+    
     // 更新场景管理器
     update(deltaTime) {
         // 更新过渡动画
@@ -104,6 +170,11 @@ class SceneManager {
         // 更新当前场景
         if (this.scenes[this.currentScene] && !this.isTransitioning) {
             this.scenes[this.currentScene].update(deltaTime);
+        }
+        
+        // 更新无线电系统 (如果激活)
+        if (this.radioState === RADIO_STATE.ACTIVE && typeof radioSystem !== 'undefined' && radioSystem) {
+            radioSystem.update(deltaTime);
         }
     }
     
@@ -228,6 +299,19 @@ class BootScene extends Scene {
         this.bootTimer = 0;
         this.showPrompt = false;
         this.promptFadeIn = 0;
+        
+        // 在boot时就初始化无线电系统和UI，但保持禁用状态
+        if (!radioSystem && typeof initRadioSystem === 'function') {
+            initRadioSystem();
+        }
+        
+        if (!radioUI && typeof initRadioUI === 'function' && radioSystem) {
+            initRadioUI(radioSystem);
+            if (radioUI) {
+                radioUI.init();
+                radioUI.deactivate();  // 初始化为禁用状态
+            }
+        }
     }
     
     update(deltaTime) {
@@ -422,6 +506,11 @@ class RobotScene extends Scene {
                 }
             });
         }
+        
+        // 确保无线电系统激活并运行
+        if (sceneManager) {
+            sceneManager.setRadioState(RADIO_STATE.ACTIVE);
+        }
     }
     
     exit() {
@@ -438,6 +527,14 @@ class RobotScene extends Scene {
         // 调用机器人游戏更新和渲染函数
         if (typeof updateAndDrawRobot === 'function') {
             updateAndDrawRobot();
+        }
+        
+        // 更新无线电系统和UI（在机器人模式下也运行）
+        if (radioSystem) {
+            radioSystem.update(deltaTime);
+        }
+        if (radioUI) {
+            radioUI.update(deltaTime);
         }
     }
     
@@ -468,27 +565,38 @@ class RadioScene extends Scene {
     enter(data) {
         super.enter(data);
         
-        // 初始化无线电系统（如果还没初始化）
-        if (!this.radio && typeof initRadioSystem === 'function') {
-            this.radio = initRadioSystem();
-            radioSystem = this.radio; // 设置全局引用
-        } else if (radioSystem) {
+        // 使用全局的无线电系统（已在BootScene初始化）
+        if (radioSystem) {
             this.radio = radioSystem;
+        } else {
+            console.error('Radio system not initialized!');
+            return;
         }
         
-        // 初始化无线电UI（DOM界面）
-        if (!this.radioUI && typeof initRadioUI === 'function' && this.radio) {
-            this.radioUI = initRadioUI(this.radio);
-            radioUI = this.radioUI; // 设置全局引用
-            // 初始化DOM
-            this.radioUI.init();
-        } else if (radioUI) {
+        // 使用全局的无线电UI（已在BootScene初始化）
+        if (radioUI) {
             this.radioUI = radioUI;
-            // 显示现有DOM
-            const container = document.getElementById('radio-interface');
-            if (container) {
-                container.style.display = 'block';
+            // 确保UI可见并激活
+            if (this.radioUI.container) {
+                this.radioUI.container.style.display = 'flex';
             }
+            // 确保UI是激活状态
+            if (!this.radioUI.isActive) {
+                this.radioUI.activate();
+            }
+        } else {
+            console.error('Radio UI not initialized!');
+            return;
+        }
+        
+        // Initialize radio display UI if not already done
+        if (!radioDisplayUI && typeof initRadioDisplayUI === 'function' && this.radio) {
+            initRadioDisplayUI(this.radio);
+        }
+        
+        // Show radio display
+        if (radioDisplayUI) {
+            radioDisplayUI.show();
         }
         
         // 设置输入上下文
@@ -529,16 +637,9 @@ class RadioScene extends Scene {
             inputManager.off('onWheel', INPUT_CONTEXTS.RADIO, this.wheelHandler);
         }
         
-        // 隐藏无线电UI
-        const container = document.getElementById('radio-interface');
-        if (container) {
-            container.style.display = 'none';
-        }
-        
-        // 隐藏摩斯码对照表
-        const morsePaper = document.getElementById('morse-paper');
-        if (morsePaper) {
-            morsePaper.style.display = 'none';
+        // Hide radio display (右侧显示器上的内容)
+        if (radioDisplayUI) {
+            radioDisplayUI.hide();
         }
         
         // 保存无线电状态（保持全局实例）
@@ -550,6 +651,9 @@ class RadioScene extends Scene {
         }
         if (this.radioUI) {
             this.radioUI.update(deltaTime);
+        }
+        if (radioDisplayUI && radioDisplayUI.isVisible) {
+            radioDisplayUI.update(deltaTime);
         }
     }
     
@@ -655,6 +759,162 @@ class AssemblyScene extends Scene {
     }
 }
 
+// 监视器菜单场景 (MONITOR MENU) - 模式选择
+class MonitorMenuScene extends Scene {
+    constructor() {
+        super('monitor_menu');
+        this.selectedOption = 0;
+        this.options = [
+            { id: 'radio', label: '1. RADIO INTERFACE', mode: DISPLAY_MODES.RADIO_DISPLAY },
+            { id: 'robot', label: '2. ROBOT CONTROL', mode: DISPLAY_MODES.ROBOT_DISPLAY }
+        ];
+        this.blinkTimer = 0;
+        this.showCursor = true;
+    }
+    
+    enter(data) {
+        super.enter(data);
+        console.log('Monitor menu entered');
+        this.selectedOption = 0;
+        
+        // Set display mode to MENU
+        if (sceneManager) {
+            sceneManager.switchDisplayMode(DISPLAY_MODES.MENU);
+        }
+    }
+    
+    update(deltaTime) {
+        // Blink cursor
+        this.blinkTimer += deltaTime;
+        if (this.blinkTimer >= 0.5) {
+            this.showCursor = !this.showCursor;
+            this.blinkTimer = 0;
+        }
+    }
+    
+    render(ctx, canvas) {
+        // Clear screen
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw title
+        ctx.fillStyle = '#00ff00';
+        ctx.font = 'bold 28px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('OS v4.0.1 [CONNECTED]', canvas.width / 2, canvas.height * 0.25);
+        
+        // Draw separator
+        ctx.strokeStyle = '#00ff00';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(canvas.width * 0.3, canvas.height * 0.3);
+        ctx.lineTo(canvas.width * 0.7, canvas.height * 0.3);
+        ctx.stroke();
+        
+        // Draw options
+        ctx.font = '20px monospace';
+        ctx.textAlign = 'left';
+        
+        const startY = canvas.height * 0.4;
+        const lineHeight = 50;
+        
+        this.options.forEach((option, index) => {
+            const y = startY + index * lineHeight;
+            const isSelected = index === this.selectedOption;
+            
+            // Draw cursor for selected option
+            if (isSelected && this.showCursor) {
+                ctx.fillStyle = '#00ff00';
+                ctx.fillText('>', canvas.width * 0.3 - 30, y);
+            }
+            
+            // Draw option text
+            ctx.fillStyle = isSelected ? '#00ff00' : '#00aa00';
+            if (isSelected) {
+                ctx.shadowColor = '#00ff00';
+                ctx.shadowBlur = 10;
+            }
+            ctx.fillText(option.label, canvas.width * 0.3, y);
+            ctx.shadowBlur = 0;
+        });
+        
+        // Draw hint
+        ctx.font = '14px monospace';
+        ctx.fillStyle = '#00aa00';
+        ctx.textAlign = 'center';
+        ctx.fillText('USE ARROW KEYS OR NUMBER KEYS TO SELECT', canvas.width / 2, canvas.height * 0.75);
+        ctx.fillText('PRESS ENTER TO CONFIRM', canvas.width / 2, canvas.height * 0.80);
+    }
+    
+    handleInput(event) {
+        const key = event.key.toLowerCase();
+        
+        // Arrow key navigation
+        if (key === 'arrowup') {
+            this.selectedOption = Math.max(0, this.selectedOption - 1);
+            return true;
+        }
+        if (key === 'arrowdown') {
+            this.selectedOption = Math.min(this.options.length - 1, this.selectedOption + 1);
+            return true;
+        }
+        
+        // Number key selection
+        if (key === '1') {
+            this.selectedOption = 0;
+            this.selectOption();
+            return true;
+        }
+        if (key === '2') {
+            this.selectedOption = 1;
+            this.selectOption();
+            return true;
+        }
+        
+        // Enter to confirm
+        if (key === 'enter') {
+            this.selectOption();
+            return true;
+        }
+        
+        return false;
+    }
+    
+    selectOption() {
+        const option = this.options[this.selectedOption];
+        console.log(`Selected option: ${option.id}`);
+        
+        // Switch display mode
+        if (sceneManager) {
+            sceneManager.switchDisplayMode(option.mode);
+            
+            // Activate radio system (runs in both modes)
+            sceneManager.setRadioState(RADIO_STATE.ACTIVE);
+            
+            // Activate radio UI (should already be initialized in BootScene)
+            if (radioUI) {
+                radioUI.activate();
+            } else {
+                console.error('Radio UI not initialized! Should be created in BootScene.');
+            }
+            
+            // Initialize radio display UI if needed
+            if (option.mode === DISPLAY_MODES.RADIO_DISPLAY) {
+                if (!radioDisplayUI && typeof initRadioDisplayUI === 'function' && radioSystem) {
+                    initRadioDisplayUI(radioSystem);
+                }
+            }
+            
+            // Switch to appropriate scene
+            if (option.id === 'radio') {
+                sceneManager.switchScene(SCENES.RADIO, 'fade');
+            } else if (option.id === 'robot') {
+                sceneManager.switchScene(SCENES.ROBOT, 'fade');
+            }
+        }
+    }
+}
+
 // 全局场景管理器实例
 let sceneManager = null;
 
@@ -669,6 +929,7 @@ function initSceneManager() {
     sceneManager.registerScene(SCENES.ROBOT, new RobotScene());
     sceneManager.registerScene(SCENES.RADIO, new RadioScene());
     sceneManager.registerScene(SCENES.ASSEMBLY, new AssemblyScene());
+    sceneManager.registerScene('monitor_menu', new MonitorMenuScene());
     
     // 设置初始场景
     sceneManager.currentScene = SCENES.BOOT;
