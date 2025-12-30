@@ -264,6 +264,11 @@ class RadioSystem {
         this.pingStartTime = Date.now();
         logMsg("PING SENT...");
         
+        // Show ping wave on radar display
+        if (typeof radioDisplayUI !== 'undefined' && radioDisplayUI) {
+            radioDisplayUI.showPingWave();
+        }
+        
         // 计算延迟（简化：距离km转换为毫秒延迟）
         const delay = (signal.distance / RADIO_CONFIG.SPEED_OF_LIGHT) * 2 * 1000;
         
@@ -304,6 +309,12 @@ class RadioSystem {
         signal.discovered = true;
         
         logMsg(`MARKED: ${signal.callsign} at (${Math.round(x)}, ${Math.round(y)})`);
+        
+        // Update radio display UI if available
+        if (typeof radioDisplayUI !== 'undefined' && radioDisplayUI) {
+            radioDisplayUI.addMarker(x, y, signal);
+        }
+        
         return { x, y, signal };
     }
     

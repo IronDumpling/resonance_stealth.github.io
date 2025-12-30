@@ -4,35 +4,55 @@
     <meta charset="UTF-8">
     <title>Resonance: Stealth Terminal</title>
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/workstation.css">
     <link rel="stylesheet" href="css/crt.css">
     <link rel="stylesheet" href="css/radio.css">
 </head>
 <body>
 
-<!-- CRT显示器容器 -->
-<div id="crt-container">
-    <div id="crt-screen">
-        <!-- 游戏画布 -->
-        <canvas id="gameCanvas"></canvas>
-        
-        <!-- CRT效果层 -->
-        <div class="crt-glare"></div>
-        <div class="crt-phosphor"></div>
+<!-- Workstation Container: First-Person View -->
+<div id="workstation-container">
+    
+    <!-- Left Side: Radio Transceiver (40%) -->
+    <div id="radio-transceiver">
+        <!-- Radio UI will be injected here by radioUI.js -->
     </div>
     
-    <!-- 电源指示灯 -->
-    <div class="power-indicator off"></div>
+    <!-- Right Side: CRT Monitor (60%) -->
+    <div id="crt-monitor-container">
+        <div id="monitor-frame">
+            <div id="monitor-screen">
+                <!-- Game Canvas (for robot mode) -->
+                <canvas id="gameCanvas"></canvas>
+                
+                <!-- Radio Mode Display (for radio mode) -->
+                <div id="radio-mode-display" style="display: none;">
+                    <div id="morse-reference"></div>
+                    <div id="decode-input"></div>
+                    <div id="radar-map-container">
+                        <canvas id="radar-canvas"></canvas>
+                    </div>
+                </div>
+                
+                <!-- CRT Effects Layer -->
+                <div class="crt-glare"></div>
+                <div class="crt-phosphor"></div>
+            </div>
+            
+            <!-- Power Indicator -->
+            <div class="power-indicator off"></div>
+        </div>
+    </div>
+    
 </div>
 
-<!-- 边缘发光效果 -->
+<!-- Edge Glow Effect (for low energy/grabbed state) -->
 <div id="edge-glow"></div>
 
-<!-- 游戏UI层已整合到Canvas渲染中 -->
-
-<!-- 世界UI容器 -->
+<!-- World UI Container (for in-game overlays) -->
 <div id="world-ui-container"></div>
 
-<!-- 背包UI（右侧列表） -->
+<!-- Inventory UI -->
 <div id="inventory-container" style="display: none;"></div>
 
 <!-- 加载脚本 -->
@@ -50,6 +70,8 @@
 <script src="js/systems/inventory.js"></script>
 <script src="js/ui/uiManager.js"></script>
 <script src="js/ui/radioUI.js"></script>
+<script src="js/ui/radioDisplayUI.js"></script>
+<script src="js/ui/radarMap.js"></script>
 <script src="js/ui/inventoryUI.js"></script>
 
 <!-- 实体模块 -->

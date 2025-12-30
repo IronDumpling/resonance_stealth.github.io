@@ -1,0 +1,279 @@
+/**
+ * Radio Display UI - Monitor's Radio Mode Interface
+ * Displays morse code reference, decode input, and radar map
+ */
+
+class RadioDisplayUI {
+    constructor(radioSystem) {
+        this.radio = radioSystem;
+        this.radarMap = null;
+        this.container = null;
+        this.decodeInput = null;
+        this.currentMessage = '';
+        this.isVisible = false;
+    }
+    
+    /**
+     * Initialize the radio display UI
+     */
+    init() {
+        this.container = document.getElementById('radio-mode-display');
+        
+        if (!this.container) {
+            console.error('Radio mode display container not found!');
+            return;
+        }
+        
+        // Initialize morse reference panel
+        this.initMorseReference();
+        
+        // Initialize decode input panel
+        this.initDecodeInput();
+        
+        // Initialize radar map
+        this.initRadarMap();
+        
+        console.log('Radio Display UI initialized');
+    }
+    
+    /**
+     * Initialize morse code reference panel
+     */
+    initMorseReference() {
+        const morseContainer = document.getElementById('morse-reference');
+        if (!morseContainer) return;
+        
+        // Generate morse code table
+        const morseHTML = `
+            <h3>MORSE CODE REFERENCE</h3>
+            <div class="morse-grid">
+                ${this.generateMorseTable()}
+            </div>
+        `;
+        
+        morseContainer.innerHTML = morseHTML;
+    }
+    
+    /**
+     * Generate morse code table HTML
+     */
+    generateMorseTable() {
+        let html = '<div class="morse-columns">';
+        
+        // Letters A-Z
+        html += '<div class="morse-column">';
+        for (let char = 'A'.charCodeAt(0); char <= 'Z'.charCodeAt(0); char++) {
+            const letter = String.fromCharCode(char);
+            const code = MORSE_CODE[letter] || '?';
+            html += `<div class="morse-entry"><span class="morse-char">${letter}</span> <span class="morse-code">${code}</span></div>`;
+        }
+        html += '</div>';
+        
+        // Numbers 0-9
+        html += '<div class="morse-column">';
+        for (let num = 0; num <= 9; num++) {
+            const code = MORSE_CODE[num.toString()] || '?';
+            html += `<div class="morse-entry"><span class="morse-char">${num}</span> <span class="morse-code">${code}</span></div>`;
+        }
+        html += '</div>';
+        
+        html += '</div>';
+        return html;
+    }
+    
+    /**
+     * Initialize decode input panel
+     */
+    initDecodeInput() {
+        const inputContainer = document.getElementById('decode-input');
+        if (!inputContainer) return;
+        
+        const inputHTML = `
+            <label for="morse-decode-field">DECODE MESSAGE:</label>
+            <input type="text" id="morse-decode-field" placeholder="Enter decoded text..." maxlength="50">
+            <div id="decode-feedback" class="decode-feedback"></div>
+            <div id="received-morse" class="received-morse">Waiting for signal...</div>
+        `;
+        
+        inputContainer.innerHTML = inputHTML;
+        
+        // Get input element
+        this.decodeInput = document.getElementById('morse-decode-field');
+        
+        // Bind input event
+        if (this.decodeInput) {
+            this.decodeInput.addEventListener('input', () => this.checkDecode());
+            this.decodeInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.submitDecode();
+                }
+            });
+        }
+    }
+    
+    /**
+     * Initialize radar map
+     */
+    initRadarMap() {
+        const radarContainer = document.getElementById('radar-map-container');
+        const radarCanvas = document.getElementById('radar-canvas');
+        
+        if (!radarCanvas || !radarContainer) {
+            console.error('Radar canvas not found!');
+            return;
+        }
+        
+        // Set canvas size
+        radarCanvas.width = radarContainer.clientWidth;
+        radarCanvas.height = radarContainer.clientHeight;
+        
+        // Create radar map instance
+        this.radarMap = new RadarMap(radarCanvas, this.radio);
+        
+        console.log('Radar map initialized');
+    }
+    
+    /**
+     * Update the display
+     */
+    update(deltaTime) {
+        if (!this.isVisible) return;
+        
+        // Update radar map
+        if (this.radarMap) {
+            this.radarMap.update(deltaTime);
+            this.radarMap.render();
+        }
+        
+        // Update received morse display
+        this.updateReceivedMorse();
+    }
+    
+    /**
+     * Update received morse code display
+     */
+    updateReceivedMorse() {
+        const receivedMorse = document.getElementById('received-morse');
+        if (!receivedMorse) return;
+        
+        // Get strongest signal
+        const signal = this.radio.getStrongestSignal();
+        
+        if (signal && signal.receivedStrength > 20) {
+            const morseCode = signal.morseCode || '...';
+            receivedMorse.innerHTML = `
+                <div class="signal-label">${signal.callsign}</div>
+                <div class="morse-display">${morseCode}</div>
+                <div class="signal-strength">Signal: ${Math.round(signal.receivedStrength)}%</div>
+            `;
+            this.currentMessage = signal.message;
+        } else {
+            receivedMorse.innerHTML = 'Waiting for signal...';
+            this.currentMessage = '';
+        }
+    }
+    
+    /**
+     * Check decode input
+     */
+    checkDecode() {
+        if (!this.decodeInput) return;
+        
+        const feedback = document.getElementById('decode-feedback');
+        if (!feedback) return;
+        
+        const input = this.decodeInput.value.toUpperCase().trim();
+        
+        if (!this.currentMessage) {
+            feedback.textContent = '';
+            feedback.className = 'decode-feedback';
+            return;
+        }
+        
+        if (input === this.currentMessage) {
+            feedback.textContent = '✓ CORRECT!';
+            feedback.className = 'decode-feedback success';
+        } else if (this.currentMessage.startsWith(input) && input.length > 0) {
+            feedback.textContent = '→ Keep going...';
+            feedback.className = 'decode-feedback partial';
+        } else if (input.length > 0) {
+            feedback.textContent = '✗ Incorrect';
+            feedback.className = 'decode-feedback error';
+        } else {
+            feedback.textContent = '';
+            feedback.className = 'decode-feedback';
+        }
+    }
+    
+    /**
+     * Submit decode
+     */
+    submitDecode() {
+        if (!this.decodeInput) return;
+        
+        const input = this.decodeInput.value.toUpperCase().trim();
+        
+        if (input === this.currentMessage) {
+            logMsg(`DECODE SUCCESS: ${this.currentMessage}`);
+            // TODO: Award points or unlock content
+            this.decodeInput.value = '';
+            this.checkDecode();
+        } else {
+            logMsg('DECODE FAILED');
+        }
+    }
+    
+    /**
+     * Show the display
+     */
+    show() {
+        if (this.container) {
+            this.container.style.display = 'grid';
+            this.container.classList.add('active');
+            this.isVisible = true;
+        }
+    }
+    
+    /**
+     * Hide the display
+     */
+    hide() {
+        if (this.container) {
+            this.container.style.display = 'none';
+            this.container.classList.remove('active');
+            this.isVisible = false;
+        }
+    }
+    
+    /**
+     * Add marker to radar map
+     */
+    addMarker(x, y, signal) {
+        if (this.radarMap) {
+            this.radarMap.addMarker(x, y, signal);
+        }
+    }
+    
+    /**
+     * Show ping wave animation
+     */
+    showPingWave() {
+        if (this.radarMap) {
+            this.radarMap.showPingWave();
+        }
+    }
+}
+
+// Global instance
+let radioDisplayUI = null;
+
+/**
+ * Initialize radio display UI
+ */
+function initRadioDisplayUI(radioSystem) {
+    radioDisplayUI = new RadioDisplayUI(radioSystem);
+    radioDisplayUI.init();
+    console.log('Radio Display UI ready');
+    return radioDisplayUI;
+}
+

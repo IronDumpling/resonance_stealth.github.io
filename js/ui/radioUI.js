@@ -25,20 +25,24 @@ class RadioUI {
     }
     
     /**
-     * 初始化DOM界面
+     * 初始化DOM界面 - 嵌入到左侧面板
      */
     init(parentElement) {
+        // 获取左侧无线电收发器容器
+        const radioTransceiver = parentElement || document.getElementById('radio-transceiver');
+        
+        if (!radioTransceiver) {
+            console.error('Radio transceiver container not found!');
+            return;
+        }
+        
         // 创建主容器
         this.container = document.createElement('div');
         this.container.id = 'radio-interface';
         this.container.innerHTML = this.generateHTML();
         
-        // 如果提供了父元素，添加到父元素；否则添加到 body
-        if (parentElement) {
-            parentElement.appendChild(this.container);
-        } else {
-            document.body.appendChild(this.container);
-        }
+        // 添加到左侧面板
+        radioTransceiver.appendChild(this.container);
         
         // 等待DOM渲染完成后初始化
         setTimeout(() => {
@@ -48,7 +52,13 @@ class RadioUI {
             // 初始化瀑布图 canvas
             this.initWaterfallCanvas();
             
-            console.log('Radio UI DOM created and initialized');
+            // 初始化指南针 canvas
+            this.initCompassCanvas();
+            
+            // 初始化信号表 canvas
+            this.initMeterCanvas();
+            
+            console.log('Radio UI DOM created and initialized in left panel');
         }, 0);
     }
     
@@ -168,18 +178,6 @@ class RadioUI {
                     <div class="paper-tape" id="paper-tape">
                         <div class="tape-content" id="tape-content"></div>
                     </div>
-                    <div class="tape-hint">Click message to view Morse code reference</div>
-                </div>
-            </div>
-            
-            <!-- 摩斯码对照表（纸张样式） -->
-            <div class="morse-reference-paper" id="morse-paper" style="display: none;">
-                <div class="paper-header">
-                    <h3>INTERNATIONAL MORSE CODE</h3>
-                    <button class="paper-close" id="close-morse">✕</button>
-                </div>
-                <div class="paper-content">
-                    ${this.generateMorseTable()}
                 </div>
             </div>
         `;
