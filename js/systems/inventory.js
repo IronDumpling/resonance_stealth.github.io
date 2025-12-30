@@ -2,6 +2,30 @@
  * 背包系统管理
  */
 
+// 仓库系统
+let warehouse = {
+    items: [],
+    maxSize: 36
+};
+
+// 初始化仓库
+function initWarehouse() {
+    warehouse.items = new Array(36).fill(null);
+    console.log('Warehouse initialized with 36 slots');
+}
+
+// 初始化玩家背包
+function initPlayerInventory() {
+    state.p.inventory = new Array(6).fill(null);
+    // 初始拾荒者核心
+    state.p.inventory[0] = {
+        type: 'core',
+        coreType: 'scavenger',
+        data: CORE_TYPES.SCAVENGER
+    };
+    console.log('Player inventory initialized with Scavenger core');
+}
+
 // 添加物品到背包
 function addToInventory(itemType) {
     if (state.p.inventory.length >= CFG.inventorySize) {
