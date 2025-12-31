@@ -82,7 +82,6 @@ class InputManager {
             'arrowleft': 'antenna_left',
             'arrowright': 'antenna_right',
             'w': 'emit_wave',
-            'm': 'mark_location',
             'escape': 'menu'
         });
         

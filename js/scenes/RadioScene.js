@@ -81,41 +81,6 @@ class RadioScene extends Scene {
                 }
             };
             inputManager.on('onWheel', INPUT_CONTEXTS.RADIO, this.wheelHandler);
-            
-            // 注册鼠标移动事件（用于标记模式）
-            this.mouseMoveHandler = (event) => {
-                if (radioDisplayUI && radioDisplayUI.radarMap && radioDisplayUI.radarMap.markingMode) {
-                    const canvas = radioDisplayUI.radarMap.canvas;
-                    const rect = canvas.getBoundingClientRect();
-                    const canvasX = event.x - rect.left;
-                    const canvasY = event.y - rect.top;
-                    radioDisplayUI.radarMap.updateMousePosition(canvasX, canvasY);
-                }
-            };
-            inputManager.on('onMouseMove', INPUT_CONTEXTS.RADIO, this.mouseMoveHandler);
-            
-            // 注册鼠标点击事件（用于标记）
-            this.mouseDownHandler = (event) => {
-                if (event.button === 2 && radioDisplayUI && radioDisplayUI.radarMap && radioDisplayUI.radarMap.markingMode) {
-                    event.originalEvent.preventDefault();
-                    const radarMap = radioDisplayUI.radarMap;
-                    const canvas = radarMap.canvas;
-                    const rect = canvas.getBoundingClientRect();
-                    const canvasX = event.x - rect.left;
-                    const canvasY = event.y - rect.top;
-                    
-                    // 计算世界坐标
-                    const dx = (canvasX - radarMap.centerX) / radarMap.scale * 1000; // km to m
-                    const dy = (canvasY - radarMap.centerY) / radarMap.scale * 1000;
-                    const worldX = this.radio.shelterX + dx;
-                    const worldY = this.radio.shelterY + dy;
-                    
-                    radarMap.placeMarker(worldX, worldY);
-                    radarMap.exitMarkingMode();
-                    logMsg(`MARKER PLACED AT (${Math.round(worldX)}, ${Math.round(worldY)})`);
-                }
-            };
-            inputManager.on('onMouseDown', INPUT_CONTEXTS.RADIO, this.mouseDownHandler);
         }
         
         logMsg("RADIO TRANSCEIVER ACTIVE | [ESC] RETURN TO MENU");
@@ -127,19 +92,6 @@ class RadioScene extends Scene {
         // 移除滚轮事件监听
         if (this.wheelHandler && typeof inputManager !== 'undefined' && inputManager !== null) {
             inputManager.off('onWheel', INPUT_CONTEXTS.RADIO, this.wheelHandler);
-        }
-        
-        // 移除鼠标事件监听
-        if (this.mouseMoveHandler && typeof inputManager !== 'undefined' && inputManager !== null) {
-            inputManager.off('onMouseMove', INPUT_CONTEXTS.RADIO, this.mouseMoveHandler);
-        }
-        if (this.mouseDownHandler && typeof inputManager !== 'undefined' && inputManager !== null) {
-            inputManager.off('onMouseDown', INPUT_CONTEXTS.RADIO, this.mouseDownHandler);
-        }
-        
-        // 退出标记模式
-        if (radioDisplayUI && radioDisplayUI.radarMap) {
-            radioDisplayUI.radarMap.exitMarkingMode();
         }
         
         // 清除回调
@@ -216,24 +168,6 @@ class RadioScene extends Scene {
             }
             if (this.radioUI) {
                 this.radioUI.flashButton('btn-wave');
-            }
-            return true;
-        }
-        
-        // M key - 标记模式切换
-        if (action === 'mark_location' || key === 'm') {
-            if (radioDisplayUI && radioDisplayUI.radarMap) {
-                const radarMap = radioDisplayUI.radarMap;
-                if (!radarMap.markingMode) {
-                    radarMap.enterMarkingMode();
-                    logMsg("MARKING MODE - RIGHT CLICK TO MARK");
-                } else {
-                    radarMap.exitMarkingMode();
-                    logMsg("MARKING MODE CANCELLED");
-                }
-            }
-            if (this.radioUI) {
-                this.radioUI.flashButton('btn-mark');
             }
             return true;
         }

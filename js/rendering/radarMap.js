@@ -25,12 +25,6 @@ class RadarMap {
         this.waves = [];
         this.responseWaves = [];
         
-        // Marking mode
-        this.markingMode = false;
-        this.markingLine = null;
-        this.mouseX = 0;
-        this.mouseY = 0;
-        
         // Animation
         this.scanAngle = 0;
         this.blinkTimer = 0;
@@ -116,9 +110,6 @@ class RadarMap {
         
         // Draw compass labels
         this.drawCompassLabels();
-        
-        // Draw marking line
-        this.drawMarkingLine();
     }
     
     /**
@@ -193,9 +184,10 @@ class RadarMap {
         
         const ctx = this.ctx;
         
-        // Draw all signal sources on the radar
+        // Draw only discovered signal sources on the radar
         for (const signal of this.radio.signals) {
             if (!signal.x || !signal.y) continue; // Skip signals without coordinates
+            if (!signal.discovered) continue; // Only show discovered signals
             
             // Convert world coordinates to radar coordinates
             const dx = signal.x - this.radio.shelterX;
@@ -471,45 +463,6 @@ class RadarMap {
     }
     
     /**
-     * Enter marking mode
-     */
-    enterMarkingMode() {
-        this.markingMode = true;
-        console.log('Marking mode activated');
-    }
-    
-    /**
-     * Exit marking mode
-     */
-    exitMarkingMode() {
-        this.markingMode = false;
-        this.markingLine = null;
-        console.log('Marking mode deactivated');
-    }
-    
-    /**
-     * Place a marker at world coordinates
-     */
-    placeMarker(worldX, worldY) {
-        const marker = {
-            x: worldX,
-            y: worldY,
-            signal: null, // Generic marker (not tied to signal)
-            label: `MARK (${Math.round(worldX)}, ${Math.round(worldY)})`
-        };
-        this.markers.push(marker);
-        console.log(`Marker placed at (${worldX}, ${worldY})`);
-    }
-    
-    /**
-     * Update mouse position for marking line
-     */
-    updateMousePosition(canvasX, canvasY) {
-        this.mouseX = canvasX;
-        this.mouseY = canvasY;
-    }
-    
-    /**
      * Draw waves (called in render)
      */
     drawWaves() {
@@ -546,36 +499,6 @@ class RadarMap {
             ctx.arc(radarX, radarY, radarR, 0, Math.PI * 2);
             ctx.stroke();
         }
-    }
-    
-    /**
-     * Draw marking line (called in render)
-     */
-    drawMarkingLine() {
-        if (!this.markingMode) return;
-        
-        const ctx = this.ctx;
-        
-        // Draw line from center to mouse
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([5, 5]);
-        ctx.beginPath();
-        ctx.moveTo(this.centerX, this.centerY);
-        ctx.lineTo(this.mouseX, this.mouseY);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        
-        // Draw crosshair at mouse position
-        const crossSize = 10;
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(this.mouseX - crossSize, this.mouseY);
-        ctx.lineTo(this.mouseX + crossSize, this.mouseY);
-        ctx.moveTo(this.mouseX, this.mouseY - crossSize);
-        ctx.lineTo(this.mouseX, this.mouseY + crossSize);
-        ctx.stroke();
     }
     
     /**

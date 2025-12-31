@@ -332,6 +332,9 @@ class RadioSystem {
             
             // 检查是否到达玩家
             if (wave.r >= distToTarget) {
+                // 标记信号为已发现
+                wave.signal.discovered = true;
+                
                 // 计算延迟时间（毫秒）
                 const delay = (wave.distance * 2 * 1000) / wave.speed;
                 

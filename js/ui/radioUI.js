@@ -182,10 +182,6 @@ class RadioUI {
                         <span class="btn-led"></span>
                         EMIT WAVE [W]
                     </button>
-                    <button class="action-btn" id="btn-mark">
-                        <span class="btn-led"></span>
-                        MARK MAP [M]
-                    </button>
                 </div>
                 
                 <!-- 摩斯码纸带输出 -->
@@ -257,11 +253,6 @@ class RadioUI {
                 this.radio.emitPlayerWave();
             }
             this.flashButton('btn-wave');
-        });
-        
-        document.getElementById('btn-mark')?.addEventListener('click', () => {
-            if (!this.isActive) return;  // 未激活时不响应
-            this.flashButton('btn-mark');
         });
         
         // 纸带点击显示摩斯码表
