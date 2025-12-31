@@ -23,7 +23,7 @@ class RobotScene extends Scene {
         }
         
         // 设置输入上下文
-        if (typeof inputManager !== 'undefined') {
+        if (typeof inputManager !== 'undefined' && inputManager !== null) {
             inputManager.setContext(INPUT_CONTEXTS.ROBOT);
         }
         
@@ -91,7 +91,7 @@ class RobotScene extends Scene {
         }
         
         // 注册滚轮事件用于频率调整
-        if (typeof inputManager !== 'undefined') {
+        if (typeof inputManager !== 'undefined' && inputManager !== null) {
             this.wheelHandler = (event) => {
                 // 使用 shiftKey 判断是否精调（优先使用直接字段，否则从 originalEvent 获取）
                 const isFine = event.shiftKey || event.originalEvent.shiftKey;
@@ -109,7 +109,7 @@ class RobotScene extends Scene {
         super.exit();
         
         // 移除滚轮事件
-        if (this.wheelHandler && typeof inputManager !== 'undefined') {
+        if (this.wheelHandler && typeof inputManager !== 'undefined' && inputManager !== null) {
             inputManager.off('onWheel', INPUT_CONTEXTS.ROBOT, this.wheelHandler);
         }
         
@@ -150,15 +150,67 @@ class RobotScene extends Scene {
     
     render(ctx, canvas) {
         // 渲染由 updateAndDrawRobot 中的 draw() 处理
-        // 这里不需要额外操作
+        // 在右下角显示提示
+        this.renderRadioHint(ctx, canvas);
+    }
+    
+    renderRadioHint(ctx, canvas) {
+        // 保存当前状态
+        ctx.save();
+        
+        // 设置文字样式
+        ctx.fillStyle = '#00ff00';
+        ctx.font = '14px "Courier New", monospace';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'bottom';
+        
+        // 添加半透明背景
+        const text = '[M] RADIO';
+        const textMetrics = ctx.measureText(text);
+        const padding = 8;
+        const x = canvas.width - 10;
+        const y = canvas.height - 10;
+        const bgWidth = textMetrics.width + padding * 2;
+        const bgHeight = 30;
+        
+        // 绘制背景
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.fillRect(x - bgWidth, y - bgHeight, bgWidth, bgHeight);
+        
+        // 绘制边框
+        ctx.strokeStyle = '#00ff00';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x - bgWidth, y - bgHeight, bgWidth, bgHeight);
+        
+        // 绘制文字
+        ctx.fillStyle = '#00ff00';
+        ctx.fillText(text, x - padding, y - padding);
+        
+        // 恢复状态
+        ctx.restore();
     }
     
     handleInput(event) {
-        // ESC键返回主菜单
-        if (event.key === 'Escape') {
-            sceneManager.switchScene(SCENES.CRT_ON, 'fade');
+        // 兼容处理：支持增强事件对象和原始事件对象
+        const key = (event.key || (event.originalEvent && event.originalEvent.key) || '').toLowerCase();
+        const action = event.action;
+        
+        // ESC键返回MonitorMenuScene
+        if (action === 'menu' || key === 'escape') {
+            if (sceneManager) {
+                sceneManager.switchScene(SCENES.MONITOR_MENU, 'fade');
+            }
             return true;
         }
+        
+        // M键进入RadioScene (toggle_mode action 或 m key)
+        if (action === 'toggle_mode' || key === 'm') {
+            if (sceneManager) {
+                sceneManager.switchScene(SCENES.RADIO, 'fade');
+            }
+            return true;
+        }
+        
         // 其他输入由现有游戏系统处理
         return false;
     }

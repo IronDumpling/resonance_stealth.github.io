@@ -10,8 +10,22 @@ class CrtOffScene extends Scene {
     
     enter(data) {
         super.enter(data);
+        
+        // 设置输入上下文为CRT_CONTROL
+        if (typeof inputManager !== 'undefined' && inputManager !== null) {
+            inputManager.setContext(INPUT_CONTEXTS.CRT_CONTROL);
+        }
+        
+        // 确保无线电UI可见但禁用
+        if (radioUI) {
+            if (radioUI.container) {
+                radioUI.container.style.display = 'flex';
+            }
+            radioUI.deactivate();
+        }
+        
         // 显示提示信息
-        logMsg("PRESS [P] TO POWER ON");
+        logMsg("PRESS [ENTER] TO RESTART");
     }
     
     update(deltaTime) {
@@ -33,14 +47,15 @@ class CrtOffScene extends Scene {
     }
     
     handleInput(event) {
-        // P键开机
-        if (event.key.toLowerCase() === 'p') {
-            // 触发CRT开机动画
-            if (crtDisplay) {
-                crtDisplay.powerOn();
+        // 兼容处理：支持增强事件对象和原始事件对象
+        const key = (event.key || (event.originalEvent && event.originalEvent.key) || '').toLowerCase();
+        const action = event.action;
+        
+        // Enter键重启到BootScene
+        if (action === 'confirm' || key === 'enter') {
+            if (sceneManager) {
+                sceneManager.switchScene(SCENES.BOOT, 'fade');
             }
-            // 切换到主菜单
-            sceneManager.switchScene(SCENES.CRT_ON, 'fade', { manualPowerOn: true });
             return true;
         }
         return false;

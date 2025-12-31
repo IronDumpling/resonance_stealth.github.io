@@ -365,7 +365,7 @@ function updateAndDrawRobot() {
 // ========================================
 
 function startApplication() {
-    console.log('=== Resonance Stealth Terminal ===');
+    console.log('=== Resonance v0.2 ===');
     console.log('Initializing systems...');
     
     // 1. 初始化全局变量
@@ -404,7 +404,8 @@ function setupInputRouting() {
     inputManager.on('onKeyDown', null, (event) => {
         const currentScene = sceneManager.getScene(sceneManager.getCurrentScene());
         if (currentScene && currentScene.handleInput) {
-            currentScene.handleInput(event.originalEvent);
+            // 传递增强的事件对象，包含 action 信息
+            currentScene.handleInput(event);
         }
     });
     

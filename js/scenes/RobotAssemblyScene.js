@@ -1,11 +1,11 @@
 /**
- * AssemblyScene.js
+ * RobotAssemblyScene.js
  * 机器人组装场景
  */
 
-class AssemblyScene extends Scene {
+class RobotAssemblyScene extends Scene {
     constructor() {
-        super(SCENES.ASSEMBLY);
+        super(SCENES.ROBOT_ASSEMBLY);
         
         this.container = null;
         this.warehouseGrid = null;
@@ -25,53 +25,6 @@ class AssemblyScene extends Scene {
         };
     }
     
-    enter(data) {
-        super.enter(data);
-        
-        // 显示Assembly容器
-        this.container = document.getElementById('assembly-container');
-        if (this.container) {
-            this.container.classList.add('active');
-            this.container.style.display = 'flex';
-        }
-        
-        // 获取UI元素
-        this.warehouseGrid = document.getElementById('warehouse-grid');
-        this.inventoryGrid = document.getElementById('robot-inventory-grid');
-        this.instructionsList = document.getElementById('instructions-list');
-        this.departureBtn = document.getElementById('btn-departure');
-        this.robotCanvas = document.getElementById('robot-canvas');
-        
-        if (this.robotCanvas) {
-            this.robotCtx = this.robotCanvas.getContext('2d');
-        }
-        
-        // 初始化UI
-        this.initWarehouseGrid();
-        this.initInventoryGrid();
-        this.initInstructions();
-        this.bindEvents();
-        
-        // 显示workstation UI（确保CRT monitor可见）
-        const workstationContainer = document.getElementById('workstation-container');
-        if (workstationContainer) workstationContainer.style.display = 'flex';
-        
-        // 隐藏游戏canvas和其他UI
-        const gameCanvas = document.getElementById('gameCanvas');
-        if (gameCanvas) gameCanvas.style.display = 'none';
-        
-        const radioModeDisplay = document.getElementById('radio-mode-display');
-        if (radioModeDisplay) radioModeDisplay.style.display = 'none';
-        
-        const worldUI = document.getElementById('world-ui-container');
-        if (worldUI) worldUI.style.display = 'none';
-        
-        const inventoryContainer = document.getElementById('inventory-container');
-        if (inventoryContainer) inventoryContainer.style.display = 'none';
-        
-        console.log('Assembly scene entered');
-        logMsg("ROBOT ASSEMBLY | [ESC] RETURN TO MENU | DRAG ITEMS TO EQUIP");
-    }
     
     exit() {
         super.exit();
@@ -428,11 +381,79 @@ class AssemblyScene extends Scene {
     }
     
     handleInput(event) {
-        if (event.key === 'Escape') {
-            sceneManager.switchScene(SCENES.CRT_ON, 'fade');
+        // 兼容处理：支持增强事件对象和原始事件对象
+        const key = (event.key || (event.originalEvent && event.originalEvent.key) || '').toLowerCase();
+        const action = event.action;
+        
+        // ESC键返回MonitorMenuScene
+        if (action === 'menu' || key === 'escape') {
+            if (sceneManager) {
+                sceneManager.switchScene(SCENES.MONITOR_MENU, 'fade');
+            }
             return true;
         }
         return false;
+    }
+    
+    enter(data) {
+        super.enter(data);
+        
+        // 设置输入上下文为ROBOT_ASSEMBLY
+        if (typeof inputManager !== 'undefined' && inputManager !== null) {
+            inputManager.setContext(INPUT_CONTEXTS.ROBOT_ASSEMBLY);
+        }
+        
+        // 确保无线电UI可见但禁用
+        if (radioUI) {
+            if (radioUI.container) {
+                radioUI.container.style.display = 'flex';
+            }
+            radioUI.deactivate();
+        }
+        
+        // 显示Assembly容器
+        this.container = document.getElementById('assembly-container');
+        if (this.container) {
+            this.container.classList.add('active');
+            this.container.style.display = 'flex';
+        }
+        
+        // 获取UI元素
+        this.warehouseGrid = document.getElementById('warehouse-grid');
+        this.inventoryGrid = document.getElementById('robot-inventory-grid');
+        this.instructionsList = document.getElementById('instructions-list');
+        this.departureBtn = document.getElementById('btn-departure');
+        this.robotCanvas = document.getElementById('robot-canvas');
+        
+        if (this.robotCanvas) {
+            this.robotCtx = this.robotCanvas.getContext('2d');
+        }
+        
+        // 初始化UI
+        this.initWarehouseGrid();
+        this.initInventoryGrid();
+        this.initInstructions();
+        this.bindEvents();
+        
+        // 显示workstation UI（确保CRT monitor可见）
+        const workstationContainer = document.getElementById('workstation-container');
+        if (workstationContainer) workstationContainer.style.display = 'flex';
+        
+        // 隐藏游戏canvas和其他UI
+        const gameCanvas = document.getElementById('gameCanvas');
+        if (gameCanvas) gameCanvas.style.display = 'none';
+        
+        const radioModeDisplay = document.getElementById('radio-mode-display');
+        if (radioModeDisplay) radioModeDisplay.style.display = 'none';
+        
+        const worldUI = document.getElementById('world-ui-container');
+        if (worldUI) worldUI.style.display = 'none';
+        
+        const inventoryContainer = document.getElementById('inventory-container');
+        if (inventoryContainer) inventoryContainer.style.display = 'none';
+        
+        console.log('RobotAssembly scene entered');
+        logMsg("ROBOT ASSEMBLY | [ESC] RETURN TO MENU | DRAG ITEMS TO EQUIP");
     }
 }
 

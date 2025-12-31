@@ -2,12 +2,13 @@
 
 // 场景类型定义
 const SCENES = {
-    BOOT: 'boot',           // 启动场景
-    CRT_OFF: 'crt_off',     // CRT关闭状态
-    CRT_ON: 'crt_on',       // CRT开启状态
-    RADIO: 'radio',         // 无线电收发器界面
-    ROBOT: 'robot',         // 机器人控制器(现有游戏)
-    ASSEMBLY: 'assembly'    // 机器人组装界面
+    BOOT: 'boot',                        // 启动场景
+    CRT_OFF: 'crt_off',                  // CRT关闭状态
+    CRT_ON: 'crt_on',                    // CRT开启状态
+    RADIO: 'radio',                      // 无线电收发器界面
+    ROBOT: 'robot',                      // 机器人控制器
+    ROBOT_ASSEMBLY: 'robot_assembly',    // 机器人组装界面
+    MONITOR_MENU: 'monitor_menu'         // 监视器菜单
 };
 
 // 显示器显示模式 (Monitor Display Modes)
@@ -33,7 +34,7 @@ class SceneManager {
         this.previousScene = null;
         this.transitionProgress = 0;
         this.isTransitioning = false;
-        this.transitionDuration = 1.0; // 默认过渡时间(秒)
+        this.transitionDuration = 0.3; // 默认过渡时间(秒)
         this.transitionType = 'fade';   // fade, slide, instant
         
         // 场景实例存储
@@ -96,6 +97,11 @@ class SceneManager {
         // 更新当前场景
         this.currentScene = targetScene;
         
+        // 立即调用新场景的enter，确保在过渡期间可以正确渲染
+        if (this.scenes[this.currentScene]) {
+            this.scenes[this.currentScene].enter(data);
+        }
+        
         return true;
     }
     
@@ -124,7 +130,12 @@ class SceneManager {
                 radioModeDisplay.style.display = 'grid';
                 radioModeDisplay.classList.add('active');
             }
-        } else if (mode === DISPLAY_MODES.MENU || mode === DISPLAY_MODES.BOOTING) {
+        } else if (mode === DISPLAY_MODES.MENU) {
+            // MENU模式需要显示gameCanvas（用于渲染菜单）
+            if (gameCanvas) gameCanvas.style.display = 'block';
+            if (radioModeDisplay) radioModeDisplay.style.display = 'none';
+        } else if (mode === DISPLAY_MODES.BOOTING) {
+            // BOOTING模式隐藏canvas（由CRT动画处理）
             if (gameCanvas) gameCanvas.style.display = 'none';
             if (radioModeDisplay) radioModeDisplay.style.display = 'none';
         }
@@ -154,12 +165,7 @@ class SceneManager {
                 this.transitionProgress = 1.0;
                 this.isTransitioning = false;
                 
-                // 调用新场景的enter
-                if (this.scenes[this.currentScene]) {
-                    const data = this.sceneData[this.currentScene] || {};
-                    this.scenes[this.currentScene].enter(data);
-                }
-                
+                // enter已经在switchScene时调用，这里只触发过渡结束回调
                 // 触发过渡结束回调
                 if (this.onTransitionEnd) {
                     this.onTransitionEnd(this.previousScene, this.currentScene);
@@ -187,6 +193,8 @@ class SceneManager {
             // 渲染当前场景
             if (this.scenes[this.currentScene]) {
                 this.scenes[this.currentScene].render(ctx, canvas);
+            } else {
+                console.warn(`Scene not found for rendering: ${this.currentScene}`);
             }
         }
     }
@@ -201,8 +209,10 @@ class SceneManager {
                 if (this.scenes[this.currentScene]) {
                     this.scenes[this.currentScene].render(ctx, canvas);
                 }
-                // 叠加淡出效果
-                ctx.fillStyle = `rgba(0, 0, 0, ${1 - progress})`;
+                // 叠加淡出效果（progress从0到1，alpha从1到0，实现淡入效果）
+                // 当progress=0时，alpha=1（完全黑色），当progress=1时，alpha=0（完全透明）
+                const alpha = Math.max(0, Math.min(1, 1 - progress));
+                ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 break;
                 
@@ -303,8 +313,8 @@ function initSceneManager() {
     sceneManager.registerScene(SCENES.CRT_ON, new CrtOnScene());
     sceneManager.registerScene(SCENES.ROBOT, new RobotScene());
     sceneManager.registerScene(SCENES.RADIO, new RadioScene());
-    sceneManager.registerScene(SCENES.ASSEMBLY, new AssemblyScene());
-    sceneManager.registerScene('monitor_menu', new MonitorMenuScene());
+    sceneManager.registerScene(SCENES.ROBOT_ASSEMBLY, new RobotAssemblyScene());
+    sceneManager.registerScene(SCENES.MONITOR_MENU, new MonitorMenuScene());
     
     // 设置初始场景
     sceneManager.currentScene = SCENES.BOOT;

@@ -17,6 +17,11 @@ class BootScene extends Scene {
         this.showPrompt = false;
         this.promptFadeIn = 0;
         
+        // 设置输入上下文为CRT_CONTROL
+        if (typeof inputManager !== 'undefined' && inputManager !== null) {
+            inputManager.setContext(INPUT_CONTEXTS.CRT_CONTROL);
+        }
+        
         // 在boot时就初始化无线电系统和UI，但保持禁用状态
         if (!radioSystem && typeof initRadioSystem === 'function') {
             initRadioSystem();
@@ -28,6 +33,14 @@ class BootScene extends Scene {
                 radioUI.init();
                 radioUI.deactivate();  // 初始化为禁用状态
             }
+        }
+        
+        // 确保无线电UI可见但禁用
+        if (radioUI) {
+            if (radioUI.container) {
+                radioUI.container.style.display = 'flex';
+            }
+            radioUI.deactivate();
         }
     }
     
@@ -70,8 +83,12 @@ class BootScene extends Scene {
     }
     
     handleInput(event) {
+        // 兼容处理：支持增强事件对象和原始事件对象
+        const key = (event.key || (event.originalEvent && event.originalEvent.key) || '').toLowerCase();
+        const action = event.action;
+        
         // 只有在提示显示后才能按Enter
-        if (this.showPrompt && event.key === 'Enter') {
+        if (this.showPrompt && (action === 'confirm' || key === 'enter')) {
             // 触发CRT开机动画
             if (crtDisplay) {
                 crtDisplay.powerOn();
