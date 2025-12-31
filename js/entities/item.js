@@ -25,6 +25,12 @@ function createItemHintUI(itemType) {
             div.style.borderColor = '#8888ff';
             div.style.textShadow = '0 0 5px #8888ff';
             break;
+        case 'quest_item':
+            div.innerHTML = '[E] QUEST ITEM';
+            div.style.color = '#ff00ff';
+            div.style.borderColor = '#ff00ff';
+            div.style.textShadow = '0 0 5px #ff00ff';
+            break;
         default:
             div.innerHTML = '[E] PICKUP';
             div.style.color = '#ffffff';
@@ -46,7 +52,7 @@ function spawnItemEnhanced(type, x, y) {
         x: x || rand(50, mapWidth - 50),
         y: y || rand(50, mapHeight - 50),
         r: 10,
-        visibleTimer: 0,
+        visibleTimer: type === 'quest_item' ? Infinity : 0, // 任务道具始终可见
         hintElement: null  // UI元素引用
     };
     
@@ -212,6 +218,18 @@ function tryPickupItem() {
             spawnParticles(item.x, item.y, '#8888ff', 20);
             removeItem(item);
             return true;
+            
+        case 'quest_item':
+            // 任务道具：收集到背包
+            if (addToInventory('quest_item')) {
+                logMsg("QUEST ITEM COLLECTED");
+                spawnParticles(item.x, item.y, '#ff00ff', 30);
+                removeItem(item);
+                return true;
+            } else {
+                logMsg("INVENTORY FULL");
+                return false;
+            }
     }
     
     return false;

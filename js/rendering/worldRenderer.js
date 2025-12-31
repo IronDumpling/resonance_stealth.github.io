@@ -304,6 +304,24 @@ function drawEntities() {
                 ctx.lineTo(i.x - i.r * 0.5, i.y + i.r * 0.4);
                 ctx.stroke();
                 ctx.shadowBlur = 0;
+            } else if (i.type === 'quest_item') {
+                // 任务道具：洋红色/紫色
+                ctx.fillStyle = '#ff00ff';
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#ff00ff';
+                ctx.beginPath();
+                ctx.arc(i.x, i.y, i.r, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                
+                // 添加脉冲效果
+                const pulsePhase = (Date.now() / 500) % 1;
+                const pulseRadius = i.r + Math.sin(pulsePhase * Math.PI * 2) * 3;
+                ctx.strokeStyle = `rgba(255, 0, 255, ${0.5 + pulsePhase * 0.5})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(i.x, i.y, pulseRadius, 0, Math.PI * 2);
+                ctx.stroke();
             } else {
                 // 其他物品（能量瓶等）：绿色
                 ctx.fillStyle = '#00ff00'; 

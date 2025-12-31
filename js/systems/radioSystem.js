@@ -349,6 +349,13 @@ class RadioSystem {
                 // 标记信号为已发现
                 wave.signal.discovered = true;
                 
+                // 在信号位置创建任务道具（如果还没有创建）
+                if (!wave.signal.questItemCreated && typeof spawnItem === 'function') {
+                    spawnItem('quest_item', wave.signal.x, wave.signal.y);
+                    wave.signal.questItemCreated = true;
+                    logMsg(`QUEST ITEM SPAWNED AT SIGNAL LOCATION`);
+                }
+                
                 // 计算延迟时间（毫秒）
                 const delay = (wave.distance * 2 * 1000) / wave.speed;
                 
@@ -664,6 +671,12 @@ class RadioSystem {
      * 更新系统
      */
     update(deltaTime) {
+        // 同步避难所位置到机器人当前位置
+        if (typeof state !== 'undefined' && state.p) {
+            this.shelterX = state.p.x;
+            this.shelterY = state.p.y;
+        }
+        
         // 更新信号生命周期
         for (let i = this.signals.length - 1; i >= 0; i--) {
             if (!this.signals[i].update(deltaTime)) {

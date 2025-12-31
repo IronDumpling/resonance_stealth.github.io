@@ -22,6 +22,23 @@ class RobotScene extends Scene {
             }
         }
         
+        // 初始化无线电系统的避难所位置到机器人起始位置
+        if (radioSystem && typeof state !== 'undefined' && state.p) {
+            radioSystem.shelterX = state.p.x;
+            radioSystem.shelterY = state.p.y;
+            
+            // 更新所有已存在信号的世界坐标（基于新的避难所位置）
+            // 这样信号在雷达地图上会相对于机器人位置正确显示
+            for (const signal of radioSystem.signals) {
+                if (signal.direction !== undefined && signal.distance !== undefined) {
+                    const angleRad = signal.direction * Math.PI / 180;
+                    const distanceMeters = signal.distance * 1000; // Convert km to meters
+                    signal.x = radioSystem.shelterX + Math.cos(angleRad) * distanceMeters;
+                    signal.y = radioSystem.shelterY + Math.sin(angleRad) * distanceMeters;
+                }
+            }
+        }
+        
         // 设置输入上下文
         if (typeof inputManager !== 'undefined' && inputManager !== null) {
             inputManager.setContext(INPUT_CONTEXTS.ROBOT);

@@ -186,10 +186,11 @@ class RadarMap {
         
         // Draw only discovered signal sources on the radar
         for (const signal of this.radio.signals) {
-            if (!signal.x || !signal.y) continue; // Skip signals without coordinates
             if (!signal.discovered) continue; // Only show discovered signals
+            if (!signal.x || !signal.y) continue; // Skip signals without coordinates
             
             // Convert world coordinates to radar coordinates
+            // Signal world coordinates are fixed, but radar shows relative to current robot position
             const dx = signal.x - this.radio.shelterX;
             const dy = signal.y - this.radio.shelterY;
             const distance = Math.sqrt(dx * dx + dy * dy) / 1000; // meters to km
