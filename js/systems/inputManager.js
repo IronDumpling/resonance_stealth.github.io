@@ -81,12 +81,9 @@ class InputManager {
             'arrowdown': 'freq_down',
             'arrowleft': 'antenna_left',
             'arrowright': 'antenna_right',
-            'p': 'ping',
-            'd': 'decode',
-            't': 'transmit',
-            'm': 'toggle_mode',
-            'escape': 'menu',
-            'tab': 'toggle_mode'
+            'w': 'emit_wave',
+            'm': 'mark_location',
+            'escape': 'menu'
         });
         
         // 组装上下文
