@@ -623,6 +623,58 @@ class RadioUI {
             // 恢复混合模式
             ctx.globalCompositeOperation = 'source-over';
         }
+        
+        // 绘制波纹接触频率条纹历史
+        const waveHistory = this.radio.waveContactHistory || [];
+        const waveResonanceRange = CFG.normalResTol; // 使用配置的普通共振容差
+        
+        if (waveHistory.length > 0) {
+            ctx.globalCompositeOperation = 'lighter';
+            
+            const displayRows = Math.min(history.length, 50);
+            const rowHeight = canvas.height / displayRows;
+            
+            // 遍历每一行历史记录
+            for (let row = 0; row < Math.min(waveHistory.length, displayRows); row++) {
+                const waveFreqs = waveHistory[row]; // 数组，可能包含多个波纹
+                
+                if (!waveFreqs || waveFreqs.length === 0) continue;
+                
+                // 绘制每个波纹的条纹
+                for (const wave of waveFreqs) {
+                    const freq = wave.freq;
+                    const source = wave.source;
+                    
+                    // 根据来源选择颜色
+                    const isEnemy = (source === 'enemy');
+                    const baseColor = isEnemy ? [255, 153, 0] : [0, 255, 255]; // 橙色 vs 青色
+                    
+                    const freqMin = freq - waveResonanceRange;
+                    const freqMax = freq + waveResonanceRange;
+                    
+                    const xStart = this.radio.frequencyToIndex(freqMin, canvas.width);
+                    const xEnd = this.radio.frequencyToIndex(freqMax, canvas.width);
+                    const width = xEnd - xStart;
+                    
+                    // 绘制条纹
+                    for (let x = xStart; x < xEnd; x++) {
+                        const distFromCenter = Math.abs(x - (xStart + width / 2)) / (width / 2);
+                        const alpha = 0.4 + (1 - distFromCenter) * 0.3; // 中心更亮
+                        
+                        ctx.fillStyle = `rgba(${baseColor[0]}, ${baseColor[1]}, ${baseColor[2]}, ${alpha})`;
+                        ctx.fillRect(
+                            x,
+                            row * rowHeight,
+                            1,
+                            Math.ceil(rowHeight)
+                        );
+                    }
+                }
+            }
+            
+            // 恢复混合模式
+            ctx.globalCompositeOperation = 'source-over';
+        }
     }
     
     /**

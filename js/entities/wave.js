@@ -16,6 +16,7 @@ function emitWave(x, y, angle, spread, freq, source, ownerId, isChain, isParry, 
     }
     
     state.entities.waves.push({
+        id: `wave_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // 添加唯一ID
         x: x, y: y, r: CFG.initialRadius, maxR: CFG.waveMaxDist,
         angle: angle, spread: spread, freq: freq, 
         baseEnergy: baseEnergy,      // 频率决定的基础能量
@@ -24,7 +25,8 @@ function emitWave(x, y, angle, spread, freq, source, ownerId, isChain, isParry, 
         
         // 弹反相关属性
         isParryWave: isParry || false,       // 标记：我是吞噬者
-        isPerfectParry: isPerfectParry || false // 标记：我的胃口很好 (100%吸收) 还是 一般 (50%)
+        isPerfectParry: isPerfectParry || false, // 标记：我的胃口很好 (100%吸收) 还是 一般 (50%)
+        _contactedPlayer: false // 追踪是否已接触玩家
     });
 }
 
@@ -860,6 +862,14 @@ function handleWavePlayerInteraction(w, oldR, waveIndex) {
     let angleDiff = Math.abs(angleToP - w.angle);
     while (angleDiff > Math.PI) angleDiff = Math.abs(angleDiff - Math.PI * 2);
     if (!(w.spread > Math.PI || angleDiff < w.spread / 2)) return 'none';
+    
+    // 通知无线电系统波纹接触
+    if (!w._contactedPlayer && w.source !== 'player') {
+        if (typeof radioSystem !== 'undefined' && radioSystem) {
+            radioSystem.addWaveContact(w.id, w.freq, w.source);
+            w._contactedPlayer = true; // 标记已接触
+        }
+    }
     
     // 物理与共振判定
     const playerFreq = state.freq;

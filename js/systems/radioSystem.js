@@ -211,6 +211,10 @@ class RadioSystem {
         // 敌人频率分析
         this.enemyAnalysisFreq = null;
         
+        // 波纹接触跟踪系统
+        this.activeWaveContacts = []; // 当前活跃的波纹接触：[{ id, freq, source, timer }]
+        this.waveContactHistory = []; // 波纹频率历史记录（用于瀑布图）
+        
         // 波纹系统
         this.emittedWaves = []; // 玩家发出的波
         this.receivedResponses = []; // 接收到的响应波
@@ -646,6 +650,18 @@ class RadioSystem {
         if (this.enemyFreqHistory.length > RADIO_CONFIG.WATERFALL_HEIGHT) {
             this.enemyFreqHistory.pop();
         }
+        
+        // 记录波纹接触频率到历史记录
+        // 将当前活跃的波纹接触转换为历史记录格式
+        const currentWaveFreqs = this.activeWaveContacts.map(w => ({
+            freq: w.freq,
+            source: w.source
+        }));
+        this.waveContactHistory.unshift(currentWaveFreqs);
+        
+        if (this.waveContactHistory.length > RADIO_CONFIG.WATERFALL_HEIGHT) {
+            this.waveContactHistory.pop();
+        }
     }
     
     /**
@@ -672,6 +688,35 @@ class RadioSystem {
     }
     
     /**
+     * 添加波纹接触记录
+     */
+    addWaveContact(waveId, freq, source) {
+        // 检查是否已存在
+        const existing = this.activeWaveContacts.find(w => w.id === waveId);
+        if (existing) {
+            existing.timer = 60; // 刷新计时器
+            return;
+        }
+        
+        this.activeWaveContacts.push({
+            id: waveId,
+            freq: freq,
+            source: source,
+            timer: 60 // 最小停留60帧
+        });
+    }
+    
+    /**
+     * 移除波纹接触记录
+     */
+    removeWaveContact(waveId) {
+        const index = this.activeWaveContacts.findIndex(w => w.id === waveId);
+        if (index !== -1) {
+            this.activeWaveContacts.splice(index, 1);
+        }
+    }
+    
+    /**
      * 更新系统
      */
     update(deltaTime) {
@@ -694,6 +739,14 @@ class RadioSystem {
         
         // 更新波纹系统
         this.updateWaves(deltaTime);
+        
+        // 更新波纹接触计时器
+        for (let i = this.activeWaveContacts.length - 1; i >= 0; i--) {
+            this.activeWaveContacts[i].timer--;
+            if (this.activeWaveContacts[i].timer <= 0) {
+                this.activeWaveContacts.splice(i, 1);
+            }
+        }
         
         // 更新瀑布图（每帧更新）
         this.updateWaterfall();
