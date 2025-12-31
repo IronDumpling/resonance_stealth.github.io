@@ -227,8 +227,12 @@ class RadioSystem {
         // 计算世界坐标（基于避难所位置）
         const angleRad = signal._angleRad;
         const distanceMeters = signal._distanceMeters;
+        
+        // Canvas坐标系：X向右（正=东），Y向下（正=南）
+        // Direction定义：0°=东，45°=东北，90°=南，135°=东南，180°=西，225°=西南，270°=北，315°=西北
+        // 由于Y轴向下，要让信号在"北"方向，需要Y减小，所以对sin取反
         signal.x = this.shelterX + Math.cos(angleRad) * distanceMeters;
-        signal.y = this.shelterY + Math.sin(angleRad) * distanceMeters;
+        signal.y = this.shelterY - Math.sin(angleRad) * distanceMeters;  // 取反sin：正角度→Y减小（北）
         
         this.signals.push(signal);
         console.log(`Signal added: ${signal.callsign} at (${signal.x.toFixed(1)}, ${signal.y.toFixed(1)}), freq ${signal.frequency} MHz`);
@@ -672,9 +676,13 @@ class RadioSystem {
      */
     update(deltaTime) {
         // 同步避难所位置到机器人当前位置
+        const oldShelterX = this.shelterX;
+        const oldShelterY = this.shelterY;
+        
         if (typeof state !== 'undefined' && state.p) {
             this.shelterX = state.p.x;
             this.shelterY = state.p.y;
+            
         }
         
         // 更新信号生命周期

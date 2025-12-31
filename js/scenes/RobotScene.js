@@ -23,18 +23,27 @@ class RobotScene extends Scene {
         }
         
         // 初始化无线电系统的避难所位置到机器人起始位置
+        // 注意：信号的世界坐标只应在首次初始化时计算，之后应保持不变
         if (radioSystem && typeof state !== 'undefined' && state.p) {
+            const oldShelterX = radioSystem.shelterX;
+            const oldShelterY = radioSystem.shelterY;
+            const isFirstInit = !radioSystem._shelterInitialized;
+            
             radioSystem.shelterX = state.p.x;
             radioSystem.shelterY = state.p.y;
             
-            // 更新所有已存在信号的世界坐标（基于新的避难所位置）
-            // 这样信号在雷达地图上会相对于机器人位置正确显示
-            for (const signal of radioSystem.signals) {
-                if (signal.direction !== undefined && signal.distance !== undefined) {
-                    const angleRad = signal.direction * Math.PI / 180;
-                    const distanceMeters = signal.distance * 1000; // Convert km to meters
-                    signal.x = radioSystem.shelterX + Math.cos(angleRad) * distanceMeters;
-                    signal.y = radioSystem.shelterY + Math.sin(angleRad) * distanceMeters;
+            // 只在首次初始化时计算信号的世界坐标
+            // 之后机器人移动时，radioSystem.update()会更新shelterX/Y，但信号世界坐标保持不变
+            if (isFirstInit) {
+                radioSystem._shelterInitialized = true;
+                
+                for (const signal of radioSystem.signals) {
+                    if (signal.direction !== undefined && signal.distance !== undefined) {
+                        const angleRad = signal.direction * Math.PI / 180;
+                        const distanceMeters = signal.distance * 1000;
+                        signal.x = radioSystem.shelterX + Math.cos(angleRad) * distanceMeters;
+                        signal.y = radioSystem.shelterY - Math.sin(angleRad) * distanceMeters;
+                    }
                 }
             }
         }

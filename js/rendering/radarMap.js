@@ -205,6 +205,11 @@ class RadarMap {
             const dx = signal.x - this.radio.shelterX;
             const dy = signal.y - this.radio.shelterY;
             const distance = Math.sqrt(dx * dx + dy * dy) / 1000; // meters to km
+            
+            // Canvas坐标系：X向右（正=东），Y向下（正=南）
+            // 在Canvas坐标系中，atan2(dy, dx)能正确处理方向：
+            // - dy<0（信号在北）→ 负角度 → sin(angle)<0 → radarY减小（向上显示）✓
+            // - dy>0（信号在南）→ 正角度 → sin(angle)>0 → radarY增大（向下显示）✓
             const angle = Math.atan2(dy, dx);
             
             const radarX = this.centerX + Math.cos(angle) * distance * this.scale;
