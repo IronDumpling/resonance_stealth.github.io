@@ -272,9 +272,12 @@ class RadioSystem {
      * 更新波纹系统
      */
     updateWaves(deltaTime) {
-        // 更新发出的波纹
+        // 更新发出的波纹（玩家发出的波）
         for (let i = this.emittedWaves.length - 1; i >= 0; i--) {
             const wave = this.emittedWaves[i];
+            
+            // 跳过响应波（在第二个循环中处理）
+            if (wave.signal) continue;
             
             // 扩展波纹半径
             wave.r += wave.speed * deltaTime;
@@ -296,9 +299,16 @@ class RadioSystem {
                 // 检查波纹是否扫过信号（使用上一帧和当前帧的半径）
                 const lastR = wave.r - wave.speed * deltaTime;
                 if (distToSignal >= lastR && distToSignal <= wave.r) {
-                    // 检查频率匹配（±10Hz容差）
+                    // 检查频率匹配（使用信号的带宽作为共振范围）
+                    // SIGNAL_BANDWIDTH 是总带宽（MHz），共振容差是半宽
+                    const resonanceTolerance = RADIO_CONFIG.SIGNAL_BANDWIDTH / 2; // ±1.0 MHz (如果带宽是2.0 MHz)
                     const freqDiff = Math.abs(wave.freq - signal.frequency);
-                    if (freqDiff <= 10) { // CFG.normalResTol = 10
+                    if (freqDiff <= resonanceTolerance) {
+                        // 计算从信号到玩家的距离（用于响应波）
+                        const dxToPlayer = this.shelterX - signal.x;
+                        const dyToPlayer = this.shelterY - signal.y;
+                        const distToPlayer = Math.sqrt(dxToPlayer * dxToPlayer + dyToPlayer * dyToPlayer);
+                        
                         // 触发共振，创建响应波
                         const responseWave = {
                             id: `response_${Date.now()}_${signal.id}`,
@@ -307,15 +317,16 @@ class RadioSystem {
                             targetX: this.shelterX,
                             targetY: this.shelterY,
                             r: 0,
-                            maxR: distToSignal,
+                            maxR: distToPlayer, // 响应波的最大范围是从信号到玩家的距离
                             speed: wave.speed,
+                            freq: signal.frequency, // 响应波使用信号的频率
                             signal: signal,
                             emitTime: Date.now(),
-                            distance: distToSignal / 1000 // meters to km
+                            distance: distToSignal / 1000 // meters to km（玩家波到信号的距离）
                         };
                         this.emittedWaves.push(responseWave);
                         
-                        console.log(`Signal ${signal.callsign} resonating at ${wave.freq.toFixed(1)} MHz`);
+                        console.log(`Signal ${signal.callsign} resonating at ${wave.freq.toFixed(1)} MHz - Response wave created`);
                     }
                 }
             }
@@ -324,7 +335,10 @@ class RadioSystem {
         // 更新响应波纹（检查是否到达玩家）
         for (let i = this.emittedWaves.length - 1; i >= 0; i--) {
             const wave = this.emittedWaves[i];
-            if (!wave.signal) continue; // 不是响应波
+            if (!wave.signal) continue; // 不是响应波，跳过
+            
+            // 更新响应波的半径（向玩家扩展）
+            wave.r += wave.speed * deltaTime;
             
             const dx = wave.targetX - wave.x;
             const dy = wave.targetY - wave.y;
@@ -353,7 +367,10 @@ class RadioSystem {
                 // 移除响应波
                 this.emittedWaves.splice(i, 1);
                 
-                console.log(`Received response from ${wave.signal.callsign}`);
+                console.log(`Received response from ${wave.signal.callsign} - Distance: ${wave.distance.toFixed(2)} km, Delay: ${delay.toFixed(2)} ms`);
+            } else if (wave.r > wave.maxR) {
+                // 响应波超出范围，移除
+                this.emittedWaves.splice(i, 1);
             }
         }
     }
