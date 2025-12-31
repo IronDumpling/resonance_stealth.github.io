@@ -7,7 +7,7 @@ const INPUT_CONTEXTS = {
     MENU: 'menu',                  // 菜单导航
     ROBOT: 'robot',                // 机器人控制(游戏)
     RADIO: 'radio',                // 无线电操作
-    ASSEMBLY: 'assembly'           // 机器人组装
+    ROBOT_ASSEMBLY: 'robot_assembly'           // 机器人组装
 };
 
 // 输入管理器类
@@ -51,9 +51,11 @@ class InputManager {
         
         // 菜单上下文
         this.registerContext(INPUT_CONTEXTS.MENU, {
-            '1': 'select_radio',
-            '2': 'select_robot',
-            'p': 'power_off',
+            '1': 'select_robot_assembly',
+            '2': 'select_power_off',
+            'arrowup': 'navigate_up',
+            'arrowdown': 'navigate_down',
+            'enter': 'confirm',
             'escape': 'back',
             'tab': 'toggle_mode'
         });
@@ -82,13 +84,13 @@ class InputManager {
             'p': 'ping',
             'd': 'decode',
             't': 'transmit',
-            'm': 'mark_location',
+            'm': 'toggle_mode',
             'escape': 'menu',
             'tab': 'toggle_mode'
         });
         
         // 组装上下文
-        this.registerContext(INPUT_CONTEXTS.ASSEMBLY, {
+        this.registerContext(INPUT_CONTEXTS.ROBOT_ASSEMBLY, {
             '1': 'select_core_scavenger',
             '2': 'select_core_mimic',
             '3': 'select_core_heavy',

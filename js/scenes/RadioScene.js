@@ -55,7 +55,7 @@ class RadioScene extends Scene {
         }
         
         // 设置输入上下文
-        if (typeof inputManager !== 'undefined') {
+        if (typeof inputManager !== 'undefined' && inputManager !== null) {
             inputManager.setContext(INPUT_CONTEXTS.RADIO);
             
             // 注册滚轮事件监听（用于调频）
@@ -90,7 +90,7 @@ class RadioScene extends Scene {
         super.exit();
         
         // 移除滚轮事件监听
-        if (this.wheelHandler && typeof inputManager !== 'undefined') {
+        if (this.wheelHandler && typeof inputManager !== 'undefined' && inputManager !== null) {
             inputManager.off('onWheel', INPUT_CONTEXTS.RADIO, this.wheelHandler);
         }
         
@@ -130,16 +130,20 @@ class RadioScene extends Scene {
     handleInput(event) {
         if (!this.radio) return false;
         
-        const key = event.key.toLowerCase();
+        // 兼容处理：支持增强事件对象和原始事件对象
+        const key = (event.key || (event.originalEvent && event.originalEvent.key) || '').toLowerCase();
+        const action = event.action;
         
-        // ESC - 返回主菜单
-        if (key === 'escape') {
-            sceneManager.switchScene(SCENES.CRT_ON, 'fade');
+        // ESC or M - 返回RobotScene
+        if (action === 'menu' || action === 'toggle_mode' || key === 'escape' || key === 'm') {
+            if (sceneManager) {
+                sceneManager.switchScene(SCENES.ROBOT, 'fade');
+            }
             return true;
         }
         
         // 天线旋转（左右方向键）
-        if (key === 'arrowleft') {
+        if (action === 'antenna_left' || key === 'arrowleft') {
             this.radio.rotateAntenna(-5);
             if (this.radioUI) {
                 this.radioUI.knobRotations.antenna -= 10;
@@ -147,7 +151,7 @@ class RadioScene extends Scene {
             }
             return true;
         }
-        if (key === 'arrowright') {
+        if (action === 'antenna_right' || key === 'arrowright') {
             this.radio.rotateAntenna(5);
             if (this.radioUI) {
                 this.radioUI.knobRotations.antenna += 10;
@@ -157,21 +161,21 @@ class RadioScene extends Scene {
         }
         
         // 操作按钮
-        if (key === 'd') {
+        if (action === 'decode' || key === 'd') {
             this.radio.recordDirection();
             if (this.radioUI) {
                 this.radioUI.flashButton('btn-direction');
             }
             return true;
         }
-        if (key === 'p') {
+        if (action === 'ping' || key === 'p') {
             this.radio.sendPing();
             if (this.radioUI) {
                 this.radioUI.flashButton('btn-ping');
             }
             return true;
         }
-        if (key === 'm') {
+        if (action === 'mark_location') {
             const marker = this.radio.markSignalOnMap();
             if (marker && this.radioUI) {
                 this.radioUI.flashButton('btn-mark');

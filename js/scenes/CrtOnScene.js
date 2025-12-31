@@ -1,74 +1,94 @@
 /**
  * CrtOnScene.js
- * CRT开启场景 - 主菜单/应用选择
+ * CRT开启场景 - 开机动画
  */
 
 class CrtOnScene extends Scene {
     constructor() {
         super(SCENES.CRT_ON);
-        this.selectedApp = 0; // 0: Radio, 1: Robot Controller
-        this.apps = ['RADIO', 'ROBOT'];
+        this.animationStarted = false;
+        this.animationComplete = false;
     }
     
     enter(data) {
         super.enter(data);
+        this.animationStarted = false;
+        this.animationComplete = false;
         
-        // 如果是从手动关机后重新开机，也触发开机动画
-        if (data && data.manualPowerOn && crtDisplay && !crtDisplay.isPoweredOn) {
-            crtDisplay.powerOn();
+        // 设置输入上下文为CRT_CONTROL
+        if (typeof inputManager !== 'undefined' && inputManager !== null) {
+            inputManager.setContext(INPUT_CONTEXTS.CRT_CONTROL);
         }
         
-        logMsg("SELECT APPLICATION: [1] RADIO [2] ROBOT | [P] POWER OFF");
+        // 确保无线电UI可见但禁用
+        if (radioUI) {
+            if (radioUI.container) {
+                radioUI.container.style.display = 'flex';
+            }
+            radioUI.deactivate();
+        }
+        
+        // 触发CRT开机动画
+        if (crtDisplay) {
+            if (!crtDisplay.isPoweredOn && !crtDisplay.isTransitioning) {
+                crtDisplay.powerOn();
+                this.animationStarted = true;
+            } else if (crtDisplay.isPoweredOn && !crtDisplay.isTransitioning) {
+                // 如果已经开机且不在过渡中，直接完成并切换
+                this.animationComplete = true;
+                this.animationStarted = true;
+                // 延迟一帧切换，确保场景正确初始化
+                setTimeout(() => {
+                    if (sceneManager && sceneManager.getCurrentScene() === SCENES.CRT_ON) {
+                        sceneManager.switchScene(SCENES.MONITOR_MENU, 'fade');
+                    }
+                }, 50);
+            } else if (crtDisplay.isTransitioning) {
+                this.animationStarted = true;
+            }
+        }
     }
     
     update(deltaTime) {
-        // 应用选择逻辑
+        // 检查开机动画是否完成
+        if (crtDisplay && this.animationStarted && !this.animationComplete) {
+            const isComplete = crtDisplay.isPoweredOn && !crtDisplay.isTransitioning;
+            
+            if (isComplete) {
+                // 动画完成，自动跳转到主菜单
+                this.animationComplete = true;
+                // 使用 setTimeout 确保在下一帧切换，避免在同一帧中多次调用
+                setTimeout(() => {
+                    if (sceneManager && sceneManager.getCurrentScene() === SCENES.CRT_ON) {
+                        sceneManager.switchScene(SCENES.MONITOR_MENU, 'fade');
+                    }
+                }, 50);
+            }
+        }
     }
     
     render(ctx, canvas) {
-        // 绿色CRT背景
-        ctx.fillStyle = '#001a00';
+        // 开机动画由 crtDisplay 系统渲染
+        // 这里只渲染黑色背景（动画会覆盖）
+        ctx.fillStyle = '#000000';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // 绘制应用菜单
-        ctx.fillStyle = '#00ff00';
-        ctx.font = 'bold 24px "Courier New"';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
-        
-        ctx.fillText('RESONANCE v0.2', centerX, centerY - 100);
-        
-        ctx.font = '20px "Courier New"';
-        ctx.fillText('[1] RADIO TRANSCEIVER', centerX, centerY);
-        ctx.fillText('[2] ROBOT CONTROLLER', centerX, centerY + 40);
-        
-        ctx.font = '14px "Courier New"';
-        ctx.fillStyle = '#00aa00';
-        ctx.fillText('[P] POWER OFF', centerX, centerY + 120);
     }
     
     handleInput(event) {
-        const key = event.key.toLowerCase();
+        // 兼容处理：支持增强事件对象和原始事件对象
+        const key = (event.key || (event.originalEvent && event.originalEvent.key) || '').toLowerCase();
+        const action = event.action;
         
-        if (key === '1') {
-            sceneManager.switchScene(SCENES.RADIO, 'fade');
-            return true;
-        } else if (key === '2') {
-            // 先进入Assembly场景进行机器人装备
-            sceneManager.switchScene(SCENES.ASSEMBLY, 'fade');
-            return true;
-        } else if (key === 'p') {
-            // 触发CRT关机动画
-            if (crtDisplay) {
-                crtDisplay.powerOff();
+        // 允许按任意键（confirm action 或任意键）跳过动画，直接进入主菜单
+        if (crtDisplay && crtDisplay.isTransitioning && (action === 'confirm' || key)) {
+            // 如果动画正在进行，可以跳过
+            if (sceneManager) {
+                // 强制完成动画
+                crtDisplay.isTransitioning = false;
+                crtDisplay.isPoweredOn = true;
+                crtDisplay.powerTransitionProgress = 1.0;
+                sceneManager.switchScene(SCENES.MONITOR_MENU, 'fade');
             }
-            // 等待关机动画完成后切换场景
-            setTimeout(() => {
-                sceneManager.switchScene(SCENES.CRT_OFF, 'instant');
-            }, 1000); // 关机动画约1秒
             return true;
         }
         return false;
