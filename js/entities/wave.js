@@ -262,43 +262,56 @@ function handleWaveBounce(w, wall, energyOnBounce, waveIndex) {
         }
     }
     
-    // === 新增：生成反弹波 ===
+    // === 生成反弹波 ===
     // 只有非反弹波才生成反弹波（避免无限反弹）
     if (!w.isReflectedWave && w.originalSourceX !== undefined && w.originalSourceY !== undefined) {
-        // 计算反弹波的起点（碰撞点的平均位置）
+        // 计算被阻挡的角度范围
         const blockedRanges = isBase ? 
             getWaveBlockedAnglesByCircle(w, { x: wall.x, y: wall.y, r: wall.radius }) :
             getWaveBlockedAngles(w, wall);
         
         if (blockedRanges && blockedRanges.length > 0) {
-            // 计算所有阻挡角度的中心作为反弹波起点
+            // 收集所有碰撞点（每个被阻挡的角度范围对应一个碰撞点）
+            const collisionPoints = [];
             const waveStartAngle = w.angle - w.spread / 2;
-            let avgAngle = 0;
-            let avgDist = 0;
             
             blockedRanges.forEach(range => {
+                // 计算这个范围的中点角度
                 const midAngle = waveStartAngle + (range.start + range.end) / 2;
-                avgAngle += midAngle;
-                avgDist += w.r;
+                // 计算碰撞点（波纹边缘上的点）
+                const collisionX = w.x + Math.cos(midAngle) * w.r;
+                const collisionY = w.y + Math.sin(midAngle) * w.r;
+                
+                collisionPoints.push({
+                    x: collisionX,
+                    y: collisionY,
+                    angle: midAngle,
+                    rangeStart: range.start,
+                    rangeEnd: range.end
+                });
             });
-            avgAngle /= blockedRanges.length;
-            avgDist /= blockedRanges.length;
             
-            const reflectionX = w.x + Math.cos(avgAngle) * avgDist;
-            const reflectionY = w.y + Math.sin(avgAngle) * avgDist;
+            // 计算反弹波的平均起点（用于生成反弹波对象）
+            let avgX = 0, avgY = 0;
+            collisionPoints.forEach(p => {
+                avgX += p.x;
+                avgY += p.y;
+            });
+            avgX /= collisionPoints.length;
+            avgY /= collisionPoints.length;
             
             // 计算反弹波的方向（指向原始发射源）
-            const dx = w.originalSourceX - reflectionX;
-            const dy = w.originalSourceY - reflectionY;
+            const dx = w.originalSourceX - avgX;
+            const dy = w.originalSourceY - avgY;
             const reflectionAngle = Math.atan2(dy, dx);
             
             // 反射系数
             const reflectionCoefficient = isBase ? 0.9 : (CFG.reflectionCoefficientWall || 0.8);
             
-            // 生成反弹波
-            emitWave(
-                reflectionX,
-                reflectionY,
+            // 生成反弹波（携带所有碰撞点信息）
+            const reflectedWave = emitWave(
+                avgX,
+                avgY,
                 reflectionAngle,
                 w.spread,  // 保持相同的扩散角度
                 w.freq,    // 保持相同的频率
@@ -312,6 +325,11 @@ function handleWaveBounce(w, wall, energyOnBounce, waveIndex) {
                 w.originalSourceX,  // 保持原始发射源坐标
                 w.originalSourceY
             );
+            
+            // 将碰撞点队列附加到反弹波对象
+            if (reflectedWave) {
+                reflectedWave.collisionPoints = collisionPoints;
+            }
         }
     }
     
@@ -535,36 +553,51 @@ function handleWaveEnemyBounce(w, enemy, energyOnBounce, waveIndex) {
         });
     }
     
-    // === 新增：生成反弹波 ===
+    // === 新增：生成反弹波（包含所有碰撞点） ===
     // 只有非反弹波才生成反弹波（避免无限反弹）
     if (!w.isReflectedWave && w.originalSourceX !== undefined && w.originalSourceY !== undefined) {
         const blockedRanges = getWaveBlockedAnglesByCircle(w, enemy);
         
         if (blockedRanges && blockedRanges.length > 0) {
-            // 计算反弹波起点（敌人中心方向的波纹边缘）
+            // 收集所有碰撞点
+            const collisionPoints = [];
             const waveStartAngle = w.angle - w.spread / 2;
-            let avgAngle = 0;
             
             blockedRanges.forEach(range => {
-                avgAngle += waveStartAngle + (range.start + range.end) / 2;
+                const midAngle = waveStartAngle + (range.start + range.end) / 2;
+                const collisionX = w.x + Math.cos(midAngle) * w.r;
+                const collisionY = w.y + Math.sin(midAngle) * w.r;
+                
+                collisionPoints.push({
+                    x: collisionX,
+                    y: collisionY,
+                    angle: midAngle,
+                    rangeStart: range.start,
+                    rangeEnd: range.end
+                });
             });
-            avgAngle /= blockedRanges.length;
             
-            const reflectionX = w.x + Math.cos(avgAngle) * w.r;
-            const reflectionY = w.y + Math.sin(avgAngle) * w.r;
+            // 计算反弹波的平均起点
+            let avgX = 0, avgY = 0;
+            collisionPoints.forEach(p => {
+                avgX += p.x;
+                avgY += p.y;
+            });
+            avgX /= collisionPoints.length;
+            avgY /= collisionPoints.length;
             
             // 计算反弹波的方向（指向原始发射源）
-            const dx = w.originalSourceX - reflectionX;
-            const dy = w.originalSourceY - reflectionY;
+            const dx = w.originalSourceX - avgX;
+            const dy = w.originalSourceY - avgY;
             const reflectionAngle = Math.atan2(dy, dx);
             
             // 反射系数（敌人的反射系数较低）
             const reflectionCoefficient = CFG.reflectionCoefficientEnemy || 0.6;
             
             // 生成反弹波
-            emitWave(
-                reflectionX,
-                reflectionY,
+            const reflectedWave = emitWave(
+                avgX,
+                avgY,
                 reflectionAngle,
                 w.spread,
                 w.freq,
@@ -576,6 +609,11 @@ function handleWaveEnemyBounce(w, enemy, energyOnBounce, waveIndex) {
                 w.originalSourceX,
                 w.originalSourceY
             );
+            
+            // 将碰撞点队列附加到反弹波对象
+            if (reflectedWave) {
+                reflectedWave.collisionPoints = collisionPoints;
+            }
         }
     }
     
@@ -787,34 +825,49 @@ function handleWavePlayerBounce(w, energyOnBounce, waveIndex) {
         });
     }
     
-    // === 新增：生成反弹波 ===
+    // === 新增：生成反弹波（包含所有碰撞点） ===
     // 只有非反弹波才生成反弹波（避免无限反弹）
     if (!w.isReflectedWave && w.originalSourceX !== undefined && w.originalSourceY !== undefined) {
         if (blockedRanges && blockedRanges.length > 0) {
-            // 计算反弹波起点
+            // 收集所有碰撞点
+            const collisionPoints = [];
             const waveStartAngle = w.angle - w.spread / 2;
-            let avgAngle = 0;
             
             blockedRanges.forEach(range => {
-                avgAngle += waveStartAngle + (range.start + range.end) / 2;
+                const midAngle = waveStartAngle + (range.start + range.end) / 2;
+                const collisionX = w.x + Math.cos(midAngle) * w.r;
+                const collisionY = w.y + Math.sin(midAngle) * w.r;
+                
+                collisionPoints.push({
+                    x: collisionX,
+                    y: collisionY,
+                    angle: midAngle,
+                    rangeStart: range.start,
+                    rangeEnd: range.end
+                });
             });
-            avgAngle /= blockedRanges.length;
             
-            const reflectionX = w.x + Math.cos(avgAngle) * w.r;
-            const reflectionY = w.y + Math.sin(avgAngle) * w.r;
+            // 计算反弹波的平均起点
+            let avgX = 0, avgY = 0;
+            collisionPoints.forEach(p => {
+                avgX += p.x;
+                avgY += p.y;
+            });
+            avgX /= collisionPoints.length;
+            avgY /= collisionPoints.length;
             
             // 计算反弹波的方向（指向原始发射源）
-            const dx = w.originalSourceX - reflectionX;
-            const dy = w.originalSourceY - reflectionY;
+            const dx = w.originalSourceX - avgX;
+            const dy = w.originalSourceY - avgY;
             const reflectionAngle = Math.atan2(dy, dx);
             
             // 玩家反射系数（与墙壁相同）
             const reflectionCoefficient = CFG.reflectionCoefficientWall || 0.8;
             
             // 生成反弹波
-            emitWave(
-                reflectionX,
-                reflectionY,
+            const reflectedWave = emitWave(
+                avgX,
+                avgY,
                 reflectionAngle,
                 w.spread,
                 w.freq,
@@ -826,6 +879,11 @@ function handleWavePlayerBounce(w, energyOnBounce, waveIndex) {
                 w.originalSourceX,
                 w.originalSourceY
             );
+            
+            // 将碰撞点队列附加到反弹波对象
+            if (reflectedWave) {
+                reflectedWave.collisionPoints = collisionPoints;
+            }
         }
     }
     

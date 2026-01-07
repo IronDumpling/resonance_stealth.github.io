@@ -143,6 +143,29 @@ function init() {
     // 生成能量瓶
     for(let i=0; i<CFG.numEnergyBottle; i++) spawnItem('energy');
     
+    // 生成信号源
+    if (CFG.storySignals && CFG.storySignals.length > 0) {
+        const baseX = canvas.width * CFG.mapScale / 2;
+        const baseY = canvas.height * CFG.mapScale / 2;
+        
+        CFG.storySignals.forEach(signalConfig => {
+            // 计算信号源的世界坐标
+            const angleRad = signalConfig.direction * Math.PI / 180;
+            const distanceMeters = signalConfig.distance * 1000;
+            const signalX = baseX + Math.cos(angleRad) * distanceMeters;
+            const signalY = baseY - Math.sin(angleRad) * distanceMeters;
+            
+            // 生成信号源物品
+            spawnItem('signal_source', signalX, signalY, {
+                frequency: signalConfig.frequency,
+                message: signalConfig.message || '',
+                callsign: signalConfig.callsign || `SIGNAL-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+                strength: signalConfig.strength || 50,
+                waveEmitInterval: 5.0  // 每5秒发射一次
+            });
+        });
+    }
+    
     // 初始化相机位置为玩家位置
     state.camera.x = state.p.x;
     state.camera.y = state.p.y;
@@ -237,6 +260,16 @@ function update(deltaTime = 0.016) {
         if (state.slamSystem && reflections.length > 0) {
             state.slamSystem.addPointsFromReflections(reflections);
         }
+    }
+    
+    // 更新信号源（5.2：信号源定期释放波纹）
+    if (typeof updateSignalSources === 'function') {
+        updateSignalSources(deltaTime);
+    }
+    
+    // 检查信号源是否被天线发现（5.2）
+    if (typeof checkSignalSourceDiscovery === 'function') {
+        checkSignalSourceDiscovery();
     }
     
     // 更新敌人和物品UI

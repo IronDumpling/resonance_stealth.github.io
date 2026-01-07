@@ -76,29 +76,35 @@ class SLAMSystem {
         if (!reflections || reflections.length === 0) return;
         
         reflections.forEach(reflection => {
-            if (reflection.collisionPoint) {
-                // 根据反弹波的ownerId判断点的类型
-                let pointType = 'unknown';
-                if (reflection.wave.isReflectedWave) {
-                    const ownerId = reflection.wave.ownerId;
-                    if (ownerId === 'wall') {
-                        pointType = 'wall';
-                    } else if (ownerId === 'player') {
-                        pointType = 'player';
-                    } else if (ownerId) {
-                        pointType = 'enemy';
-                    } else {
-                        pointType = 'unknown';
-                    }
+            // 处理碰撞点队列（所有被阻挡的碰撞点）
+            const collisionPoints = reflection.collisionPoints || [];
+            
+            if (collisionPoints.length === 0) return;
+            
+            // 根据反弹波的ownerId判断点的类型
+            let pointType = 'unknown';
+            if (reflection.wave.isReflectedWave) {
+                const ownerId = reflection.wave.ownerId;
+                if (ownerId === 'wall') {
+                    pointType = 'wall';
+                } else if (ownerId === 'player') {
+                    pointType = 'player';
+                } else if (ownerId) {
+                    pointType = 'enemy';
+                } else {
+                    pointType = 'unknown';
                 }
-                
-                this.addPoint(
-                    reflection.collisionPoint.x,
-                    reflection.collisionPoint.y,
-                    pointType,
-                    reflection.wave.id
-                );
             }
+            
+            // 批量添加所有碰撞点
+            collisionPoints.forEach((point, index) => {
+                this.addPoint(
+                    point.x,
+                    point.y,
+                    pointType,
+                    `${reflection.wave.id}_${index}`  // 为每个点生成唯一ID
+                );
+            });
         });
     }
     
