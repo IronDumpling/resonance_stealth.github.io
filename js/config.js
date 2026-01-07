@@ -116,6 +116,15 @@ const CFG = {
     reflectionCoefficientWall: 0.8,   // 墙壁反射系数（80%能量）
     reflectionCoefficientEnemy: 0.6,  // 敌人反射系数（60%能量）
     
+    // 天线系统
+    antennaRange: 280,                // 天线接收半径
+    antennaAngle: Math.PI / 2.5,      // 天线扇形角度
+    
+    // SLAM系统
+    slamMaxPoints: 10000,              // 点云最大数量
+    slamPointLifetime: Infinity,       // 点的生命周期（Infinity = 永久）
+    slamConnectPoints: false,          // 是否连接相近的点形成轮廓线
+    
     // 波纹信息显示等级阈值
     infoLevelClear: 500,      // 高于此值：清晰轮廓（低于则为模糊轮廓）
     infoLevelAnalyze: 2000,   // 高于此值：显示分析UI

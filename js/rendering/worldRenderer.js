@@ -270,25 +270,6 @@ function drawWaves() {
     });
 }
 
-// 绘制视野裁剪和光照
-function drawVisibilityAndLighting() {
-    // 视野裁剪区
-    const visPoly = getVisibiltyPolygon(state.p.x, state.p.y, state.p.a);
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(visPoly[0].x, visPoly[0].y);
-    for(let i=1; i<visPoly.length; i++) ctx.lineTo(visPoly[i].x, visPoly[i].y);
-    ctx.closePath();
-    ctx.clip();
-
-    // 光照
-    const grad = ctx.createRadialGradient(state.p.x, state.p.y, 10, state.p.x, state.p.y, CFG.pViewDist);
-    grad.addColorStop(0, 'rgba(200, 255, 255, 0.15)');
-    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    ctx.fillStyle = grad; ctx.fill();
-    // 注意：不在这里恢复，让调用者决定何时恢复clip
-}
-
 // 绘制实体（墙壁、物品、敌人）
 function drawEntities() {
     // 绘制墙壁
@@ -612,6 +593,72 @@ function drawParticles() {
     ctx.globalAlpha = 1;
 }
 
+// 绘制SLAM点云（新视觉系统核心）
+function drawSLAMPointCloud() {
+    if (!state.slamSystem) return;
+    
+    // 获取相机视野内的点云（性能优化）
+    const viewRadius = Math.max(canvas.width, canvas.height) / CFG.cameraFOV * 1.5;
+    const points = state.slamSystem.getPointsInRegion(state.camera.x, state.camera.y, viewRadius);
+    
+    if (points.length === 0) return;
+    
+    // 绘制点云
+    points.forEach(point => {
+        // 根据点类型设置颜色
+        let color = 'rgba(0, 255, 0, 0.8)';  // 默认绿色
+        if (point.type === 'wall') {
+            color = 'rgba(0, 255, 0, 0.7)';  // 墙壁：绿色
+        } else if (point.type === 'enemy') {
+            color = 'rgba(255, 100, 100, 0.8)';  // 敌人：红色
+        } else if (point.type === 'player') {
+            color = 'rgba(0, 255, 255, 0.8)';  // 玩家：青色
+        }
+        
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, 2, 0, Math.PI * 2);
+        ctx.fill();
+    });
+    
+    // 可选：连接相近的点形成轮廓线
+    if (CFG.slamConnectPoints && points.length > 1) {
+        connectNearbyPoints(points);
+    }
+}
+
+// 连接相近的SLAM点形成轮廓线（可选功能）
+function connectNearbyPoints(points) {
+    if (points.length < 2) return;
+    
+    const maxDistance = 15;  // 最大连接距离
+    ctx.strokeStyle = 'rgba(0, 255, 0, 0.3)';
+    ctx.lineWidth = 1;
+    
+    for (let i = 0; i < points.length; i++) {
+        const p1 = points[i];
+        
+        // 只连接最近的几个点（避免过度连接）
+        let connectedCount = 0;
+        const maxConnections = 3;
+        
+        for (let j = i + 1; j < points.length && connectedCount < maxConnections; j++) {
+            const p2 = points[j];
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            if (dist < maxDistance && p1.type === p2.type) {
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+                connectedCount++;
+            }
+        }
+    }
+}
+
 // 绘制挣脱进度条
 function drawStruggleBar() {
     if (!state.p.isGrabbed) return;
@@ -785,7 +832,7 @@ function drawEvacuationProgress() {
 
 // 主绘制函数
 function draw() {
-    // 绘制背景
+    // 绘制纯黑背景（新视觉系统）
     drawBackground();
 
     // 应用相机变换
@@ -794,43 +841,41 @@ function draw() {
     ctx.scale(CFG.cameraFOV, CFG.cameraFOV);
     ctx.translate(-state.camera.x, -state.camera.y);
 
-    // 绘制回声
+    // === 新视觉系统：只渲染波纹和SLAM点云 ===
+    
+    // 1. 绘制SLAM点云（永久记录的地形）
+    drawSLAMPointCloud();
+    
+    // 2. 绘制回声（波纹碰撞的瞬时轮廓）
     drawEchoes();
     
-    // 绘制墙壁轮廓
+    // 3. 绘制墙壁轮廓（穿透时的轮廓）
     drawWallEchoes();
     
-    // 绘制基地轮廓（蓝色荧光）
+    // 4. 绘制基地轮廓（蓝色荧光）
     drawBaseEchoes();
 
-    // 绘制辐射场（在波纹之前）
+    // 5. 绘制辐射场（能量消耗的视觉表现）
     drawRadiations();
 
-    // 绘制波纹
+    // 6. 绘制波纹（核心视觉元素）
     drawWaves();
 
-    // 绘制视野裁剪和光照（设置clip）
-    drawVisibilityAndLighting();
-
-    // 绘制实体（墙壁、物品、敌人，在clip内）
-    drawEntities();
-    
-    // 恢复视野裁剪（恢复clip）
-    ctx.restore();
-    
-    // 绘制玩家（在clip外，但在相机变换内）
+    // 7. 绘制玩家（始终可见）
     drawPlayer();
     
-    // 绘制辅助瞄准线（在相机变换内）
+    // 8. 绘制辅助瞄准线
     drawAimLine();
 
-    // 绘制粒子（在相机变换内）
+    // 9. 绘制粒子效果
     drawParticles();
     
     // 恢复相机变换
     ctx.restore();
     
-    // 绘制UI（挣脱进度条，不受相机变换影响）
+    // === UI层（不受相机变换影响）===
+    
+    // 绘制挣脱进度条
     drawStruggleBar();
     
     // 绘制撤离进度条

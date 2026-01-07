@@ -32,6 +32,8 @@ function emitWave(x, y, angle, spread, freq, source, ownerId, isChain, isParry, 
         isReflectedWave: isReflectedWave || false,  // 是否是反弹波
         originalSourceX: originalSourceX,           // 原始波纹发射源X坐标
         originalSourceY: originalSourceY,           // 原始波纹发射源Y坐标
+        reflectionOriginX: x,                       // 反弹波起点X（碰撞点）
+        reflectionOriginY: y,                       // 反弹波起点Y（碰撞点）
         
         // 摩斯码
         morseCode: ''  // 将在下面生成
@@ -301,7 +303,7 @@ function handleWaveBounce(w, wall, energyOnBounce, waveIndex) {
                 w.spread,  // 保持相同的扩散角度
                 w.freq,    // 保持相同的频率
                 'reflection',  // 标记为反弹波来源
-                w.ownerId,
+                'wall',  // 墙壁反弹，使用特殊标记
                 false,  // isChain
                 false,  // isParry
                 false,  // isPerfectParry

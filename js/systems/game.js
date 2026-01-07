@@ -70,7 +70,10 @@ const state = {
     camera: { x: 0, y: 0 },
     entities: {
         walls: [], enemies: [], waves: [], echoes: [], particles: [], items: [], wallEchoes: [], radiations: [], base: null, baseEchoes: []
-    }
+    },
+    
+    antennaSystem: null,
+    slamSystem: null
 };
 
 // --- 初始化 ---
@@ -218,6 +221,24 @@ function update(deltaTime = 0.016) {
     // 第二遍：清理标记为删除的波纹
     state.entities.waves = state.entities.waves.filter(w => !w._toRemove);
     
+    // 更新天线系统：检测反弹波
+    if (state.antennaSystem) {
+        // 更新天线方向（跟随玩家朝向）
+        state.antennaSystem.updateDirection(state.p.a);
+        
+        // 检测反弹波
+        const reflections = state.antennaSystem.detectReflectedWaves(
+            state.entities.waves,
+            state.p.x,
+            state.p.y
+        );
+        
+        // 将反弹波记录到SLAM系统
+        if (state.slamSystem && reflections.length > 0) {
+            state.slamSystem.addPointsFromReflections(reflections);
+        }
+    }
+    
     // 更新敌人和物品UI
     updateEnemies();
     updateItemsUI();
@@ -349,6 +370,16 @@ function startApplication() {
     // 4. 初始化摩斯码系统
     if (typeof initMorseCodeSystem === 'function') {
         initMorseCodeSystem();
+    }
+    
+    // 5. 初始化天线系统
+    if (typeof initAntennaSystem === 'function') {
+        state.antennaSystem = initAntennaSystem();
+    }
+    
+    // 6. 初始化SLAM系统
+    if (typeof initSLAMSystem === 'function') {
+        state.slamSystem = initSLAMSystem();
     }
     
     console.log('All systems initialized');
