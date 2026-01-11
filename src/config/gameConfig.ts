@@ -20,9 +20,8 @@ export const CFG: IGameConfig = {
   pViewDist: 280,
   pViewAngle: Math.PI / 2.5,
   playerRadius: 14,          // 玩家碰撞半径（用于波纹命中与分割）
-  maxEnergy: 100,            // 能量上限
   maxDurability: 100,        // 耐久上限
-  energyFlaskVal: 30,        // 能量瓶恢复量
+  energyBottleVal: 30,        // 能量瓶恢复量
   
   // 耐久消耗（仅在抓取/被抓取挣扎时消耗）
   struggleDurabilityLoss: 2,         // 被抓取挣脱时耐久损失（每次按F）
@@ -72,7 +71,6 @@ export const CFG: IGameConfig = {
   grabEnergyDrainRate: 0.1,      // 被抓取时每帧能量流失量
   
   // 能量系统
-  energyDecayRate: 0.01,         // 能量自然衰减（每帧基础消耗）
   waveAbsorbRatio: 0.3,          // 波纹穿透时生物吸收的能量比例（对应穿透损失的30%）
   
   // 能耗辐射系统
@@ -88,8 +86,6 @@ export const CFG: IGameConfig = {
   energyAbsorbDetectionThreshold: 10,          // 吸收能量感知阈值（生物波穿透时）
   
   // 过载系统
-  overloadDecayRate: 0.2,         // 过载条自然衰减速度（每帧，降低以允许连击）
-  maxOverload: 100,               // 过载最大值（玩家和敌人统一）
   overloadStunMultiplier: 2,      // 硬直时间倍率（过载增长 * 倍率 = 硬直帧数）
   
   // 抓取系统
@@ -179,8 +175,12 @@ export const CORE_TYPES: ICoreTypes = {
     name: '拾荒者核心',
     freqMin: 120,
     freqMax: 220,
-    energyMultiplier: 0.8,      // 能耗降低20%
-    radiationMultiplier: 0.9,   // 辐射半径降低10%
+    maxEnergy: 120,              // 高能量上限
+    energyDecayRate: 0.008,      // 低能耗（0.8倍基础值）
+    maxOverload: 100,
+    overloadDecayRate: 0.2,
+    energyMultiplier: 0.8,       // 用于辐射系统等
+    radiationMultiplier: 0.9,    // 辐射半径降低10%
     speedMultiplier: 1.0,
     description: '节能高效，适合长期探索'
   },
@@ -188,20 +188,28 @@ export const CORE_TYPES: ICoreTypes = {
     id: 'mimic',
     name: '拟态者核心',
     freqMin: 100,
-    freqMax: 300,               // 全频率覆盖
-    energyMultiplier: 1.2,      // 能耗增加20%
-    radiationMultiplier: 0.7,   // 辐射半径降低30%
-    speedMultiplier: 1.1,        // 速度提升10%
+    freqMax: 300,                 // 全频率覆盖
+    maxEnergy: 80,                // 较低能量上限
+    energyDecayRate: 0.012,       // 较高能耗（1.2倍基础值）
+    maxOverload: 100,
+    overloadDecayRate: 0.2,
+    energyMultiplier: 1.2,        // 用于辐射系统等
+    radiationMultiplier: 0.7,     // 辐射半径降低30%
+    speedMultiplier: 1.1,         // 速度提升10%
     description: '高机动低辐射，擅长潜行'
   },
   HEAVY: {
     id: 'heavy',
     name: '重装核心',
     freqMin: 100,
-    freqMax: 150,               // 极低频
-    energyMultiplier: 1.5,      // 能耗增加50%
-    radiationMultiplier: 1.3,   // 辐射半径增加30%
-    speedMultiplier: 0.85,       // 速度降低15%
+    freqMax: 150,                 // 极低频
+    maxEnergy: 150,               // 很高能量上限
+    energyDecayRate: 0.015,       // 很高能耗（1.5倍基础值）
+    maxOverload: 120,             // 更高的过载上限
+    overloadDecayRate: 0.15,      // 较慢的过载衰减
+    energyMultiplier: 1.5,        // 用于辐射系统等
+    radiationMultiplier: 1.3,     // 辐射半径增加30%
+    speedMultiplier: 0.85,        // 速度降低15%
     description: '高耐久重装，正面突破'
   }
 };

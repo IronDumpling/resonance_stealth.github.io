@@ -15,7 +15,7 @@ export class EnergyBottle extends BaseEntity implements IEnergyBottle {
 
   constructor(x: number = 0, y: number = 0, value?: number) {
     super(x, y);
-    this.value = value ?? (typeof CFG.energyFlaskVal === 'number' ? CFG.energyFlaskVal : 30);
+    this.value = value ?? (typeof CFG.energyBottleVal === 'number' ? CFG.energyBottleVal : 30);
     this.visibleTimer = 0; // 默认不可见，需要被波纹扫描后才可见
   }
 

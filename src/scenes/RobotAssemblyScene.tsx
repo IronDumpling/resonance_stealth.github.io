@@ -110,6 +110,9 @@ export class RobotAssemblyScene extends Scene {
     this.initInstructions();
     this.bindEvents();
     
+    // 更新departure按钮状态
+    this.updateDepartureButton();
+    
     // 显示workstation UI（确保CRT monitor可见）
     const workstationContainer = document.getElementById('workstation-container');
     if (workstationContainer) workstationContainer.style.display = 'flex';
@@ -245,6 +248,20 @@ export class RobotAssemblyScene extends Scene {
 
   onDeparture(): void {
     console.log('Departure button clicked');
+    
+    // 检查核心槽位是否有core_hot
+    if (!this.playerInventory) return;
+    const firstItem = this.playerInventory[0];
+    const hasCore = firstItem && (firstItem.type === 'core_hot' || firstItem.type === 'core_hot');
+    
+    if (!hasCore) {
+      console.warn('Cannot depart: Core slot is empty');
+      if (this.gameState) {
+        logMsg("CORE REQUIRED - Place a hot core in the first inventory slot", this.gameState);
+      }
+      return;
+    }
+    
     // 切换到TACTICAL_RADAR场景
     if (this.sceneManager) {
       this.sceneManager.switchScene(SCENES.TACTICAL_RADAR, 'fade');
@@ -352,6 +369,19 @@ export class RobotAssemblyScene extends Scene {
     const sourceItem = sourceArray[sourceIndex];
     const targetItem = targetArray[targetIndex];
     
+    // 验证：核心槽位（inventory slot 0）只能放置core_hot类型的物品
+    if (targetType === 'inventory' && targetIndex === 0) {
+      if (sourceItem && sourceItem.type !== 'core_hot' && sourceItem.type !== 'core_hot') {
+        console.warn('Core slot only accepts core_hot items');
+        return; // 拒绝交换
+      }
+    }
+    
+    // 如果从核心槽位移除物品，允许（可以移除核心）
+    if (sourceType === 'inventory' && sourceIndex === 0 && targetIndex !== 0) {
+      // 允许移除核心
+    }
+    
     // 交换
     sourceArray[sourceIndex] = targetItem;
     targetArray[targetIndex] = sourceItem;
@@ -359,6 +389,7 @@ export class RobotAssemblyScene extends Scene {
     // 如果是inventory的变化，更新装备的核心
     if (sourceType === 'inventory' || targetType === 'inventory') {
       this.updateEquippedCore();
+      this.updateDepartureButton(); // 更新departure按钮状态
     }
     
     // 刷新UI
@@ -369,14 +400,47 @@ export class RobotAssemblyScene extends Scene {
   }
 
   updateEquippedCore(): void {
-    if (!this.playerInventory || !this.playerCurrentCore) return;
+    if (!this.playerInventory || !this.gameState) return;
     
-    // 检查inventory第一个slot是否有核心
+    // 检查inventory第一个slot是否有core_hot
     const firstItem = this.playerInventory[0];
-    if (firstItem && firstItem.type === 'core' && firstItem.data) {
-      // 更新当前核心（需要外部系统支持）
-      // this.playerCurrentCore = firstItem.data;
-      console.log(`Equipped core: ${(firstItem.data as { name?: string }).name || 'Unknown'}`);
+    if (firstItem && (firstItem.type === 'core_hot' || firstItem.type === 'core_hot')) {
+      const hotCore = firstItem as { coreData?: { name?: string; id?: string } };
+      if (hotCore.coreData) {
+        // 更新player的currentCore
+        this.gameState.p.currentCore = hotCore.coreData as any;
+        console.log(`Equipped core: ${hotCore.coreData.name || 'Unknown'}`);
+      }
+    } else {
+      // 核心槽位为空，清除当前核心（使用默认值）
+      console.log('Core slot is empty');
+    }
+  }
+
+  /**
+   * 更新departure按钮状态
+   */
+  updateDepartureButton(): void {
+    if (!this.departureBtn || !this.playerInventory) return;
+    
+    // 检查核心槽位是否有core_hot
+    const firstItem = this.playerInventory[0];
+    const hasCore = firstItem && (firstItem.type === 'core_hot' || firstItem.type === 'core_hot');
+    
+    if (hasCore) {
+      // 有核心，启用按钮
+      this.departureBtn.removeAttribute('disabled');
+      this.departureBtn.style.opacity = '1';
+      this.departureBtn.style.cursor = 'pointer';
+      if (this.departureBtn.title) {
+        this.departureBtn.removeAttribute('title');
+      }
+    } else {
+      // 无核心，禁用按钮
+      this.departureBtn.setAttribute('disabled', 'true');
+      this.departureBtn.style.opacity = '0.5';
+      this.departureBtn.style.cursor = 'not-allowed';
+      this.departureBtn.title = 'CORE REQUIRED - Place a hot core in the first inventory slot';
     }
   }
 

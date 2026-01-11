@@ -4,20 +4,21 @@
  */
 
 import { BaseEntity } from '../Base';
-import { IHotCore } from '@/types/entities';
+import { IHotCore, ICore } from '@/types/entities';
 import { CFG } from '@/config/gameConfig';
 
 export class HotCore extends BaseEntity implements IHotCore {
-  type: 'hot_core' = 'hot_core';
+  type: 'core_hot' = 'core_hot';
   visibleTimer: number = 0;
   value: number = 0;
+  coreData?: ICore;
   hintElement: HTMLElement | null = null;
 
-  constructor(x: number = 0, y: number = 0, value?: number) {
+  constructor(x: number = 0, y: number = 0, value?: number, coreData?: ICore) {
     super(x, y);
     this.value = value ?? (typeof CFG.coreHotItemValue === 'number' ? CFG.coreHotItemValue : 10);
-    // 热核心默认可见时间（从敌人掉落时设置）
-    this.visibleTimer = 120; // 2秒可见
+    this.coreData = coreData;
+    this.visibleTimer = 240; // 4秒可见
   }
 
   override init(): void {
@@ -86,7 +87,8 @@ export class HotCore extends BaseEntity implements IHotCore {
 export function createHotCore(
   x: number,
   y: number,
-  value?: number
+  value?: number,
+  coreData?: ICore
 ): HotCore {
-  return new HotCore(x, y, value);
+  return new HotCore(x, y, value, coreData);
 }

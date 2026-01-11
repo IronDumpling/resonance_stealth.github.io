@@ -36,6 +36,7 @@ export interface IPlayer extends IBaseEntity {
   currentCore: ICore;
   durability: number;
   inventory: (IItem | null)[]; // 背包数组，可能包含null
+  overloadedStunTimer: number; // 过载硬直计时器
 }
 
 // 敌人实体接口
@@ -70,7 +71,14 @@ export interface ICore {
   name: string;
   freqMin: number;
   freqMax: number;
-  energyMultiplier: number;
+  // 直接数值配置
+  maxEnergy: number;              // 能量上限
+  energyDecayRate: number;        // 能量消耗速率（每帧）
+  maxOverload: number;            // 过载上限
+  overloadDecayRate: number;      // 过载衰减速率（每帧）
+  overloadGainRate?: number;       // 过载增长速率（可选，如果有特殊机制）
+  // 保留现有的multiplier
+  energyMultiplier: number;        // 用于辐射系统等
   radiationMultiplier: number;
   speedMultiplier: number;
   description: string;
@@ -84,7 +92,7 @@ export interface IItem extends IBaseEntity {
 }
 
 // 物品类型
-export type ItemType = 'energy_bottle' | 'cold_core' | 'hot_core' | 'signal_source';
+export type ItemType = 'energy_bottle' | 'cold_core' | 'core_hot' | 'signal_source';
 
 // 能量瓶接口
 export interface IEnergyBottle extends IItem {
@@ -102,8 +110,9 @@ export interface IColdCore extends IItem {
 
 // 热核心接口
 export interface IHotCore extends IItem {
-  type: 'hot_core';
+  type: 'core_hot';
   value: number;
+  coreData?: ICore; // 存储核心配置数据
   hintElement?: HTMLElement | null;
 }
 

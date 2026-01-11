@@ -77,9 +77,10 @@ export class PlayerStatusUI {
   private createDOMStructure(): void {
     if (!this.container) return;
 
-    const maxEnergy = typeof CFG.maxEnergy === 'number' ? CFG.maxEnergy : 100;
+    // 初始值会在update方法中动态更新
+    const maxEnergy = 100; // 占位值，实际值在update中获取
     const maxDurability = typeof CFG.maxDurability === 'number' ? CFG.maxDurability : 100;
-    const maxOverload = typeof CFG.maxOverload === 'number' ? CFG.maxOverload : 100;
+    const maxOverload = 100; // 占位值，实际值在update中获取
 
     // 能量条
     const energyBar = document.createElement('div');
@@ -154,9 +155,11 @@ export class PlayerStatusUI {
     // 更新位置（以防窗口大小改变）
     this.updatePosition();
 
-    const maxEnergy = typeof CFG.maxEnergy === 'number' ? CFG.maxEnergy : 100;
+    // 从player对象获取动态最大值（如果player有这些方法）
+    const player = this.gameState.p as any;
+    const maxEnergy = player.getMaxEnergy ? player.getMaxEnergy() : 100;
     const maxDurability = typeof CFG.maxDurability === 'number' ? CFG.maxDurability : 100;
-    const maxOverload = typeof CFG.maxOverload === 'number' ? CFG.maxOverload : 100;
+    const maxOverload = player.getMaxOverload ? player.getMaxOverload() : 100;
 
     // 更新能量条
     if (this.energyBarFill && this.energyBarValue) {

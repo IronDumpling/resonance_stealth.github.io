@@ -76,7 +76,10 @@ export class GameSystem implements IGameSystem {
     this.gameState.p.x = baseX;
     this.gameState.p.y = baseY - playerOffsetY;
     
-    const maxEnergy = CFG.maxEnergy || 100;
+    // 使用player的getMaxEnergy方法，否则使用默认值
+    const maxEnergy = (this.gameState.p as any).getMaxEnergy 
+      ? (this.gameState.p as any).getMaxEnergy() 
+      : 100;
     this.gameState.p.en = maxEnergy;
     this.gameState.p.isGrabbed = false;
     this.gameState.p.grabberEnemy = null;

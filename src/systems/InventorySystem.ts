@@ -5,7 +5,7 @@
 
 import { IInventorySystem } from '@/types/systems';
 import { CFG, CORE_TYPES } from '@/config/gameConfig';
-import { IItem } from '@/types/entities';
+import { IItem, IHotCore } from '@/types/entities';
 
 // 仓库系统接口
 export interface IWarehouse {
@@ -18,6 +18,7 @@ export interface IGameStateForInventory {
   p: {
     inventory: (IItem | null)[];
     en: number;
+    getMaxEnergy?: () => number;
   };
 }
 
@@ -71,16 +72,15 @@ export class InventorySystem implements IInventorySystem {
     const inventorySize = CFG.inventorySize || 6;
     this.gameState.p.inventory = new Array(inventorySize).fill(null);
     
-    // 初始拾荒者核心
-    // 注意：核心物品的类型定义可能需要扩展 IItem 接口
+    // 初始拾荒者核心（core_hot类型）
     this.gameState.p.inventory[0] = {
-      type: 'core' as any, // 临时类型，核心物品类型可能需要单独定义
+      type: 'core_hot',
       x: 0,
       y: 0,
       visibleTimer: 0,
-      coreType: 'scavenger',
-      data: CORE_TYPES.SCAVENGER
-    } as any;
+      value: 0,
+      coreData: CORE_TYPES.SCAVENGER
+    } as IHotCore;
     
     console.log('Player inventory initialized with Scavenger core');
   }
@@ -100,12 +100,31 @@ export class InventorySystem implements IInventorySystem {
       return false;
     }
     
-    // 检查是否有空位（null槽位）
-    const emptySlotIndex = this.gameState.p.inventory.findIndex(slot => slot === null);
+    // 检查是否有空位（null槽位），但跳过slot 0（核心槽位）
+    let emptySlotIndex = -1;
+    for (let i = 1; i < this.gameState.p.inventory.length; i++) {
+      if (this.gameState.p.inventory[i] === null) {
+        emptySlotIndex = i;
+        break;
+      }
+    }
+    
+    // 如果slot 0为空，且物品是core_hot，可以放入slot 0
+    if (this.gameState.p.inventory[0] === null && itemType === 'core_hot') {
+      emptySlotIndex = 0;
+    }
     
     if (emptySlotIndex === -1) {
       if (this.onLogMessage) {
         this.onLogMessage("INVENTORY FULL");
+      }
+      return false;
+    }
+    
+    // 验证：如果目标槽位是0，只允许core_hot
+    if (emptySlotIndex === 0 && itemType !== 'core_hot') {
+      if (this.onLogMessage) {
+        this.onLogMessage("CORE SLOT ONLY ACCEPTS HOT CORE");
       }
       return false;
     }
@@ -115,7 +134,7 @@ export class InventorySystem implements IInventorySystem {
       id: Math.random().toString(36).substr(2, 9)
     };
     
-    // 放入第一个空槽位
+    // 放入槽位
     this.gameState.p.inventory[emptySlotIndex] = newItem;
     
     // 更新UI
@@ -197,7 +216,7 @@ export class InventorySystem implements IInventorySystem {
   /**
    * 使用能量瓶
    */
-  useEnergyFlask(): boolean {
+  useenergyBottle(): boolean {
     if (!this.gameState) {
       console.error('Game state not set for InventorySystem');
       return false;
@@ -210,7 +229,8 @@ export class InventorySystem implements IInventorySystem {
       return false;
     }
     
-    const maxEnergy = CFG.maxEnergy || 100;
+    // 使用player的getMaxEnergy方法（如果可用），否则使用默认值
+    const maxEnergy = this.gameState.p.getMaxEnergy ? this.gameState.p.getMaxEnergy() : 100;
     if (this.gameState.p.en >= maxEnergy) {
       if (this.onLogMessage) {
         this.onLogMessage("ENERGY FULL");
@@ -219,7 +239,7 @@ export class InventorySystem implements IInventorySystem {
     }
     
     if (this.removeItemByType('energy_bottle')) {
-      const energyValue = CFG.energyFlaskVal || 30;
+      const energyValue = CFG.energyBottleVal || 30;
       if (this.onAddEnergy) {
         this.onAddEnergy(energyValue);
       }
