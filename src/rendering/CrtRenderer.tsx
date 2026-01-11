@@ -242,6 +242,12 @@ export class CrtRenderer {
     const width = this.canvas.width;
     const height = this.canvas.height;
     
+    // 确保离屏canvas尺寸与主canvas匹配
+    if (this.offscreenCanvas.width !== width || this.offscreenCanvas.height !== height) {
+      this.offscreenCanvas.width = width;
+      this.offscreenCanvas.height = height;
+    }
+    
     // 1. 将源内容复制到离屏canvas
     this.offscreenCtx.clearRect(0, 0, width, height);
     this.offscreenCtx.drawImage(sourceCanvas || this.canvas, 0, 0);
@@ -463,6 +469,9 @@ export class CrtRenderer {
         // 检查回调函数参数数量
         if (renderCallback.length === 0) {
           // 无参数回调（App.tsx中的调用方式）
+          // 先清空canvas，确保场景内容能正确渲染
+          this.ctx.fillStyle = '#000000';
+          this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
           renderCallback();
         } else {
           // 有参数回调（原始代码的调用方式）

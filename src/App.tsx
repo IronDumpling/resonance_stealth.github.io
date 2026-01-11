@@ -221,14 +221,20 @@ const AppInternal: React.FC = () => {
     },
     onRender: () => {
       // 渲染场景
-      if (canvasRef.current && sceneManager) {
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext('2d');
-        if (ctx && crtRenderer) {
+      if (canvasRef.current && sceneManager && crtRenderer) {
+        // 使用 crtRenderer 的 canvas 和 ctx，确保一致性
+        const canvas = crtRenderer.canvas;
+        const ctx = crtRenderer.ctx;
+        if (canvas && ctx) {
           crtRenderer.render(() => {
             sceneManager.render(ctx, canvas);
           });
-        } else if (ctx) {
+        }
+      } else if (canvasRef.current && sceneManager) {
+        // 如果没有 crtRenderer，直接渲染
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
           sceneManager.render(ctx, canvas);
         }
       }
