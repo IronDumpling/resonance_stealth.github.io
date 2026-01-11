@@ -3,8 +3,8 @@
  * Inventory UI Component
  */
 
-import React, { useEffect, useRef } from 'react';
 import { CFG } from '@/config/gameConfig';
+import { ItemSlotUI } from './ItemSlotUI';
 
 interface InventoryItem {
   type: string;
@@ -38,29 +38,15 @@ export class InventoryUI {
     this.container = container;
     container.innerHTML = '';
     
-    // 创建6个物品槽
+    // 创建物品槽（使用ItemSlotUI）
     const inventorySize = (typeof CFG.inventorySize === 'number' ? CFG.inventorySize : 6);
     for (let i = 0; i < inventorySize; i++) {
-      const slot = document.createElement('div');
-      slot.className = 'inventory-slot';
-      slot.id = `inv-slot-${i}`;
-      slot.style.cssText = `
-        width: 50px;
-        height: 50px;
-        border: 2px solid #333333;
-        background: rgba(0, 0, 0, 0.7);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 24px;
-        color: #00ff00;
-        box-shadow: inset 0 0 10px rgba(0, 255, 0, 0.3);
-      `;
+      const slot = ItemSlotUI.createInventorySlot(i, null);
       container.appendChild(slot);
       this.slots.push(slot);
     }
     
-    // 更新容器位置（基于canvas位置）
+    // 更新容器位置（底部水平排列）
     this.updatePosition();
   }
 
@@ -80,36 +66,8 @@ export class InventoryUI {
       
       const item = this.gameState.p.inventory[i];
       
-      if (item) {
-        // 根据物品类型设置图标
-        switch (item.type) {
-          case 'energy_bottle':
-            slot.textContent = '⚡';
-            slot.style.color = '#00ff00';
-            break;
-          case 'core_hot':
-            slot.textContent = '◆';
-            slot.style.color = '#ff6600';
-            break;
-          case 'core_cold':
-            slot.textContent = '◇';
-            slot.style.color = '#8888ff';
-            break;
-          case 'signal_source':
-            slot.textContent = '◉';
-            slot.style.color = '#ffaa00';
-            break;
-          default:
-            slot.textContent = '?';
-            slot.style.color = '#ffffff';
-            break;
-        }
-        slot.style.borderColor = '#00ff00';
-      } else {
-        // 空槽位
-        slot.textContent = '';
-        slot.style.borderColor = '#333333';
-      }
+      // 使用ItemSlotUI更新槽位
+      ItemSlotUI.updateInventorySlot(slot, item);
     }
   }
 
@@ -130,7 +88,7 @@ export class InventoryUI {
   }
 
   /**
-   * 更新背包位置（使其显示在CRT屏幕内的右侧）
+   * 更新背包位置（使其显示在CRT屏幕内的底部水平居中）
    */
   updatePosition(): void {
     const container = document.getElementById('inventory-container');
@@ -140,37 +98,17 @@ export class InventoryUI {
     
     const canvasRect = canvas.getBoundingClientRect();
     
-    // 定位到canvas右侧内部，距离右边20px，距离顶部120px
+    // 定位到canvas底部水平居中，距离底部20px
     container.style.cssText = `
       position: fixed;
-      right: ${window.innerWidth - canvasRect.right + 20}px;
-      top: ${canvasRect.top + 120}px;
+      left: ${canvasRect.left + (canvasRect.width / 2)}px;
+      bottom: ${window.innerHeight - canvasRect.bottom + 20}px;
+      transform: translateX(-50%);
       display: flex;
-      flex-direction: column;
+      flex-direction: row;
       gap: 8px;
       z-index: 1100;
       pointer-events: none;
     `;
   }
 }
-
-// React组件包装器
-export const InventoryUIComponent: React.FC<{ gameState?: GameState | null }> = ({ gameState }) => {
-  const uiRef = useRef<InventoryUI | null>(null);
-
-  useEffect(() => {
-    if (!uiRef.current) {
-      uiRef.current = new InventoryUI(gameState);
-      uiRef.current.create();
-    } else {
-      // 更新 gameState 引用
-      uiRef.current.gameState = gameState || null;
-    }
-
-    return () => {
-      // 清理
-    };
-  }, [gameState]);
-
-  return <div id="inventory-container" style={{ display: 'none' }} />;
-};

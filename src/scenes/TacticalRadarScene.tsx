@@ -8,19 +8,25 @@ import { SCENES, SceneData, DISPLAY_MODES } from '@/types/scenes';
 import { InputManager } from '@/systems/InputManager';
 import { SceneManager } from '@/systems/SceneManager';
 import { INPUT_CONTEXTS } from '@/types/systems';
+import { IGameState } from '@/types/game';
+import { TacticalRadarUI } from '@/ui/TacticalRadarUI';
 
 export class TacticalRadarScene extends Scene {
   // 依赖注入
   inputManager: InputManager | null = null;
   sceneManager: SceneManager | null = null;
+  gameState: IGameState | null = null;
+  tacticalRadarUI: TacticalRadarUI | null = null;
 
   constructor(
     inputManager?: InputManager,
-    sceneManager?: SceneManager
+    sceneManager?: SceneManager,
+    gameState?: IGameState
   ) {
     super(SCENES.TACTICAL_RADAR);
     this.inputManager = inputManager || null;
     this.sceneManager = sceneManager || null;
+    this.gameState = gameState || null;
   }
 
   override enter(data?: SceneData): void {
@@ -47,10 +53,31 @@ export class TacticalRadarScene extends Scene {
     if (this.sceneManager) {
       this.sceneManager.switchDisplayMode(DISPLAY_MODES.ROBOT_DISPLAY);
     }
+
+    // 初始化并显示TacticalRadarUI
+    if (this.gameState) {
+      this.tacticalRadarUI = new TacticalRadarUI(this.gameState);
+      this.tacticalRadarUI.init();
+      this.tacticalRadarUI.show();
+    }
   }
 
-  override update(_deltaTime: number): void {
-    // 空实现，暂时保留
+  override exit(): void {
+    super.exit();
+    
+    // 隐藏TacticalRadarUI
+    if (this.tacticalRadarUI) {
+      this.tacticalRadarUI.hide();
+      this.tacticalRadarUI.destroy();
+      this.tacticalRadarUI = null;
+    }
+  }
+
+  override update(deltaTime: number): void {
+    // 更新TacticalRadarUI
+    if (this.tacticalRadarUI) {
+      this.tacticalRadarUI.update(deltaTime);
+    }
   }
 
   override render(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement): void {

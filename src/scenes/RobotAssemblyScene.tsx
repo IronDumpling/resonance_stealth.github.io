@@ -10,6 +10,9 @@ import { SceneManager } from '@/systems/SceneManager';
 import { INPUT_CONTEXTS } from '@/types/systems';
 import { INSTRUCTIONS } from '@/config/gameConfig';
 import { logMsg } from '@/utils';
+import { IGameState } from '@/types/game';
+import { RobotAssemblyUI } from '@/ui/RobotAssemblyUI';
+import { ItemSlotUI } from '@/ui/ItemSlotUI';
 
 interface InventoryItem {
   type: string;
@@ -55,7 +58,8 @@ export class RobotAssemblyScene extends Scene {
   warehouse: Warehouse | null = null;
   playerInventory: (InventoryItem | null)[] | null = null;
   playerCurrentCore: unknown | null = null;
-  gameState: { currentMessage: string; messageTimer: number } | null = null;
+  gameState: IGameState | null = null;
+  robotAssemblyUI: RobotAssemblyUI | null = null;
 
   constructor(
     inputManager?: InputManager,
@@ -63,7 +67,7 @@ export class RobotAssemblyScene extends Scene {
     warehouse?: Warehouse,
     playerInventory?: (InventoryItem | null)[],
     playerCurrentCore?: unknown,
-    gameState?: { currentMessage: string; messageTimer: number }
+    gameState?: IGameState
   ) {
     super(SCENES.ROBOT_ASSEMBLY);
     this.inputManager = inputManager || null;
@@ -117,11 +121,16 @@ export class RobotAssemblyScene extends Scene {
     const radioModeDisplay = document.getElementById('radio-mode-display');
     if (radioModeDisplay) radioModeDisplay.style.display = 'none';
     
+    // 显示world-ui-container（用于显示状态和inventory）
     const worldUI = document.getElementById('world-ui-container');
-    if (worldUI) worldUI.style.display = 'none';
+    if (worldUI) worldUI.style.display = 'block';
     
-    const inventoryContainer = document.getElementById('inventory-container');
-    if (inventoryContainer) inventoryContainer.style.display = 'none';
+    // 初始化并显示RobotAssemblyUI
+    if (this.gameState) {
+      this.robotAssemblyUI = new RobotAssemblyUI(this.gameState);
+      this.robotAssemblyUI.init();
+      this.robotAssemblyUI.show();
+    }
     
     console.log('RobotAssembly scene entered');
     if (this.gameState) {
@@ -136,6 +145,13 @@ export class RobotAssemblyScene extends Scene {
     if (this.container) {
       this.container.classList.remove('active');
       this.container.style.display = 'none';
+    }
+    
+    // 隐藏RobotAssemblyUI
+    if (this.robotAssemblyUI) {
+      this.robotAssemblyUI.hide();
+      this.robotAssemblyUI.destroy();
+      this.robotAssemblyUI = null;
     }
     
     // 解绑事件
@@ -168,32 +184,8 @@ export class RobotAssemblyScene extends Scene {
   }
 
   createItemSlot(index: number, source: string, item: InventoryItem | null): HTMLElement {
-    const slot = document.createElement('div');
-    slot.className = 'item-slot';
-    slot.dataset.index = index.toString();
-    slot.dataset.source = source;
-    
-    if (item) {
-      slot.classList.add('has-item');
-      
-      // 根据物品类型显示
-      const label = document.createElement('div');
-      label.className = 'item-label';
-      
-      if (item.type === 'core') {
-        label.textContent = item.coreType ? item.coreType.toUpperCase() : 'CORE';
-        slot.style.background = 'rgba(255, 100, 0, 0.3)';
-      } else if (item.type === 'energy_bottle') {
-        label.textContent = 'ENERGY';
-        slot.style.background = 'rgba(0, 255, 0, 0.3)';
-      } else {
-        label.textContent = item.type ? item.type.toUpperCase() : 'ITEM';
-      }
-      
-      slot.appendChild(label);
-    }
-    
-    return slot;
+    // 使用ItemSlotUI创建物品槽
+    return ItemSlotUI.createAssemblySlot(index, source, item);
   }
 
   initInstructions(): void {
@@ -325,25 +317,9 @@ export class RobotAssemblyScene extends Scene {
   }
 
   createDragPreview(item: InventoryItem, x: number, y: number): void {
-    const preview = document.createElement('div');
-    preview.className = 'drag-preview';
-    preview.style.left = (x - 25) + 'px';
-    preview.style.top = (y - 25) + 'px';
-    
-    const label = document.createElement('div');
-    label.style.color = '#00ff00';
-    label.style.fontSize = '10px';
-    label.style.textAlign = 'center';
-    
-    if (item.type === 'core') {
-      label.textContent = item.coreType ? item.coreType.toUpperCase() : 'CORE';
-    } else {
-      label.textContent = item.type ? item.type.toUpperCase() : 'ITEM';
-    }
-    
-    preview.appendChild(label);
+    // 使用ItemSlotUI创建拖拽预览
+    const preview = ItemSlotUI.createDragPreview(item, x, y);
     document.body.appendChild(preview);
-    
     this.dragState.previewElement = preview;
   }
 
@@ -404,9 +380,14 @@ export class RobotAssemblyScene extends Scene {
     }
   }
 
-  override update(_deltaTime: number): void {
+  override update(deltaTime: number): void {
     // 绘制机器人图
     this.renderRobotDiagram();
+    
+    // 更新RobotAssemblyUI
+    if (this.robotAssemblyUI) {
+      this.robotAssemblyUI.update(deltaTime);
+    }
   }
 
   renderRobotDiagram(): void {

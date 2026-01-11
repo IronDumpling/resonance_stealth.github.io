@@ -98,12 +98,12 @@ const AppInternal: React.FC = () => {
           inventorySystem?.getWarehouse() || undefined,
           gameState.p.inventory,
           gameState.p.currentCore,
-          gameState
+          gameState // 传入完整的 IGameState
         )
       );
       sceneManager.registerScene(
         SCENES.TACTICAL_RADAR,
-        new TacticalRadarScene(inputManager, sceneManager)
+        new TacticalRadarScene(inputManager, sceneManager, gameState)
       );
       sceneManager.registerScene(
         SCENES.WIDE_RADAR,
